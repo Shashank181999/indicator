@@ -133,6 +133,7 @@ export default function MarketSniperIndicator() {
     centerX: 0,
   });
 
+  
   // Crosshair/cursor tracking state
   const crosshairRef = useRef({
     x: null,
@@ -154,6 +155,7 @@ export default function MarketSniperIndicator() {
   const [showGuide, setShowGuide] = useState(false);
   const [chartType, setChartType] = useState('candle');
   const [fullscreen, setFullscreen] = useState(false);
+  const fullscreenContainerRef = useRef(null);
   const [timeframe, setTimeframe] = useState('15m');
   const [showAssetSearch, setShowAssetSearch] = useState(false);
   const [assetSearch, setAssetSearch] = useState('');
@@ -183,6 +185,57 @@ export default function MarketSniperIndicator() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Handle fullscreen changes (native browser API)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      setFullscreen(isFs);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Toggle fullscreen function
+  const toggleFullscreen = useCallback(() => {
+    const container = fullscreenContainerRef.current;
+    if (!container) return;
+
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+
+    if (!isFs) {
+      // Enter fullscreen
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+      } else {
+        // Fallback for browsers that don't support Fullscreen API
+        setFullscreen(true);
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      } else {
+        setFullscreen(false);
+      }
+    }
   }, []);
 
   // Calculate candle countdown timer
@@ -332,12 +385,22 @@ export default function MarketSniperIndicator() {
         setMarketData(data);
         setIsMarketOpen(data.isMarketOpen !== false);
 
-        // Initialize both viewports to show all data
+        // Initialize both viewports to show latest candles
         const candleCount = data.priceData.length;
-        chartViewportRef.current.startIndex = 0;
+        const defaultCandleWidth = 8;
+        const visibleCount = Math.min(100, candleCount); // Show last 100 candles or all if less
+        const startIdx = Math.max(0, candleCount - visibleCount);
+
+        // Set viewports
+        chartViewportRef.current.startIndex = startIdx;
         chartViewportRef.current.endIndex = candleCount;
-        oscViewportRef.current.startIndex = 0;
-        oscViewportRef.current.endIndex = candleCount;
+        chartViewportRef.current.candleWidth = defaultCandleWidth;
+
+        // Also sync target
+        targetViewportRef.current.candleWidth = defaultCandleWidth;
+        targetViewportRef.current.startIndex = startIdx;
+        targetViewportRef.current.endIndex = candleCount;
+        targetViewportRef.current.isAnimating = false;
 
         if (!livePrice) {
           setLivePrice(data.currentPrice);
@@ -427,20 +490,19 @@ export default function MarketSniperIndicator() {
 
   // Refetch when timeframe changes
   useEffect(() => {
-    chartViewportRef.current = {
+    const defaultValues = {
       startIndex: 0,
       endIndex: 100,
       candleWidth: 8,
       minCandleWidth: 2,
       maxCandleWidth: 50,
     };
-    oscViewportRef.current = {
-      startIndex: 0,
-      endIndex: 100,
-      candleWidth: 8,
-      minCandleWidth: 2,
-      maxCandleWidth: 50,
-    };
+    chartViewportRef.current = { ...defaultValues };
+    // Also reset target
+    targetViewportRef.current.candleWidth = 8;
+    targetViewportRef.current.startIndex = 0;
+    targetViewportRef.current.endIndex = 100;
+    targetViewportRef.current.isAnimating = false;
     fetchHistoricalData();
   }, [timeframe]);
 
@@ -448,14 +510,55 @@ export default function MarketSniperIndicator() {
   // TRADINGVIEW-STYLE ZOOM & PAN IMPLEMENTATION
   // ============================================
 
-  // Smooth render function using requestAnimationFrame
-  const scheduleRender = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    animationFrameRef.current = requestAnimationFrame(() => {
+  // Target viewport values for smooth animation (single viewport for both chart and oscillator)
+  const targetViewportRef = useRef({
+    candleWidth: 8,
+    startIndex: 0,
+    endIndex: 100,
+    isAnimating: false,
+  });
+
+  // Smooth animation loop - interpolates viewport towards target
+  const animateViewport = useCallback(() => {
+    const target = targetViewportRef.current;
+    const vp = chartViewportRef.current;
+
+    // Lerp factor - 0.4 = responsive but smooth
+    const lerp = 0.4;
+
+    // Interpolate towards target
+    vp.candleWidth += (target.candleWidth - vp.candleWidth) * lerp;
+    vp.startIndex += (target.startIndex - vp.startIndex) * lerp;
+    vp.endIndex += (target.endIndex - vp.endIndex) * lerp;
+
+    // Check if close enough to stop
+    const diff = Math.abs(target.candleWidth - vp.candleWidth) +
+                 Math.abs(target.startIndex - vp.startIndex) +
+                 Math.abs(target.endIndex - vp.endIndex);
+
+    drawChart();
+
+    if (diff > 0.01) {
+      animationFrameRef.current = requestAnimationFrame(animateViewport);
+    } else {
+      // Snap to final values
+      vp.candleWidth = target.candleWidth;
+      vp.startIndex = target.startIndex;
+      vp.endIndex = target.endIndex;
+      target.isAnimating = false;
+      animationFrameRef.current = null;
       drawChart();
-    });
+    }
+  }, []);
+
+  // Schedule render - just draws without animation
+  const scheduleRender = useCallback(() => {
+    if (!animationFrameRef.current) {
+      animationFrameRef.current = requestAnimationFrame(() => {
+        animationFrameRef.current = null;
+        drawChart();
+      });
+    }
   }, []);
 
   // Calculate visible range from viewport state
@@ -485,106 +588,114 @@ export default function MarketSniperIndicator() {
     };
   }, []);
 
-  // Zoom handler - viewport-based, cursor-centered
-  const handleZoom = useCallback((deltaY, clientX, clientY, viewportRef) => {
+  // Smooth zoom handler
+  const handleZoom = useCallback((deltaY, clientX, clientY) => {
     const canvas = chartRef.current;
     if (!canvas || !marketData?.priceData) return;
 
-    const vp = viewportRef || (activeViewportRef.current === 'osc' ? oscViewportRef : chartViewportRef);
-
     const rect = canvas.getBoundingClientRect();
     const chartWidth = rect.width - 75;
-    const priceData = marketData.priceData;
-    const candleCount = priceData.length;
+    const candleCount = marketData.priceData.length;
 
-    const viewport = vp.current;
+    const viewport = chartViewportRef.current;
+    const target = targetViewportRef.current;
 
-    // Calculate zoom factor (continuous, not stepped)
-    const zoomIntensity = 0.001;
-    const zoomFactor = 1 - deltaY * zoomIntensity;
+    // Use current target as base (for continuous zooming)
+    const baseWidth = target.candleWidth || viewport.candleWidth;
+    const baseStart = target.startIndex !== undefined ? target.startIndex : viewport.startIndex;
+
+    // Zoom factor - exponential for consistent feel
+    const zoomFactor = Math.exp(-deltaY * 0.002);
 
     // Calculate new candle width
-    const newCandleWidth = Math.max(
+    const newWidth = Math.max(
       viewport.minCandleWidth,
-      Math.min(viewport.maxCandleWidth, viewport.candleWidth * zoomFactor)
+      Math.min(viewport.maxCandleWidth, baseWidth * zoomFactor)
     );
 
-    // Calculate cursor position as percentage of chart
+    // Calculate cursor position
     const cursorX = clientX - rect.left - 5;
     const cursorPercent = Math.max(0, Math.min(1, cursorX / chartWidth));
 
-    // Calculate visible candles before and after zoom
-    const newVisibleCount = Math.floor(chartWidth / newCandleWidth);
+    // Calculate visible candles
+    const oldVisibleCount = chartWidth / baseWidth;
+    const newVisibleCount = chartWidth / newWidth;
 
-    // Calculate the index under cursor before zoom
-    const visibleRange = getVisibleRange(priceData, chartWidth, vp);
-    const indexUnderCursor = visibleRange.start + (visibleRange.end - visibleRange.start) * cursorPercent;
+    // Calculate index under cursor
+    const indexUnderCursor = baseStart + oldVisibleCount * cursorPercent;
 
-    // Calculate new start/end to keep cursor position stable
-    const newStartIndex = indexUnderCursor - newVisibleCount * cursorPercent;
-    const newEndIndex = newStartIndex + newVisibleCount;
+    // Calculate new range keeping cursor stable
+    let newStart = indexUnderCursor - newVisibleCount * cursorPercent;
+    let newEnd = newStart + newVisibleCount;
 
-    // Update viewport
-    viewport.candleWidth = newCandleWidth;
-    viewport.startIndex = Math.max(0, newStartIndex);
-    viewport.endIndex = Math.min(candleCount, newEndIndex);
-
-    // Clamp to valid range
-    if (viewport.endIndex > candleCount) {
-      viewport.endIndex = candleCount;
-      viewport.startIndex = Math.max(0, candleCount - newVisibleCount);
+    // Clamp
+    if (newEnd > candleCount) {
+      newEnd = candleCount;
+      newStart = Math.max(0, candleCount - newVisibleCount);
     }
-    if (viewport.startIndex < 0) {
-      viewport.startIndex = 0;
-      viewport.endIndex = Math.min(newVisibleCount, candleCount);
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = Math.min(newVisibleCount, candleCount);
     }
 
-    scheduleRender();
-  }, [marketData, getVisibleRange, scheduleRender]);
+    // Set TARGET values
+    target.candleWidth = newWidth;
+    target.startIndex = newStart;
+    target.endIndex = newEnd;
 
-  // Pan handler with inertia
-  const handlePan = useCallback((deltaX, viewportRef) => {
-    const canvas = chartRef.current;
-    if (!canvas || !marketData?.priceData) return;
+    // Start animation if not running
+    if (!target.isAnimating) {
+      target.isAnimating = true;
+      animationFrameRef.current = requestAnimationFrame(animateViewport);
+    }
+  }, [marketData, animateViewport]);
 
-    const vp = viewportRef || (activeViewportRef.current === 'osc' ? oscViewportRef : chartViewportRef);
+  // Smooth pan handler
+  const handlePan = useCallback((deltaX) => {
+    if (!marketData?.priceData) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const chartWidth = rect.width - 75;
-    const priceData = marketData.priceData;
-    const candleCount = priceData.length;
+    const viewport = chartViewportRef.current;
+    const target = targetViewportRef.current;
+    const candleCount = marketData.priceData.length;
 
-    const viewport = vp.current;
+    // Use current target as base
+    const baseStart = target.startIndex !== undefined ? target.startIndex : viewport.startIndex;
+    const baseEnd = target.endIndex !== undefined ? target.endIndex : viewport.endIndex;
+    const baseWidth = target.candleWidth || viewport.candleWidth;
 
     // Convert pixel delta to index delta
-    const indexDelta = -deltaX / viewport.candleWidth;
-
-    const visibleCount = Math.floor(chartWidth / viewport.candleWidth);
+    const indexDelta = -deltaX / baseWidth;
+    const visibleCount = baseEnd - baseStart;
 
     // Calculate new indices
-    let newStartIndex = viewport.startIndex + indexDelta;
-    let newEndIndex = viewport.endIndex + indexDelta;
+    let newStart = baseStart + indexDelta;
+    let newEnd = baseEnd + indexDelta;
 
-    // Clamp to valid range
-    if (newStartIndex < 0) {
-      newStartIndex = 0;
-      newEndIndex = visibleCount;
+    // Clamp
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = visibleCount;
     }
-    if (newEndIndex > candleCount) {
-      newEndIndex = candleCount;
-      newStartIndex = Math.max(0, candleCount - visibleCount);
+    if (newEnd > candleCount) {
+      newEnd = candleCount;
+      newStart = Math.max(0, candleCount - visibleCount);
     }
 
-    viewport.startIndex = newStartIndex;
-    viewport.endIndex = newEndIndex;
+    // Set TARGET values
+    target.startIndex = newStart;
+    target.endIndex = newEnd;
+    target.candleWidth = baseWidth;
 
-    scheduleRender();
-  }, [marketData, scheduleRender]);
+    // Start animation if not running
+    if (!target.isAnimating) {
+      target.isAnimating = true;
+      animationFrameRef.current = requestAnimationFrame(animateViewport);
+    }
+  }, [marketData, animateViewport]);
 
   // Inertia animation for smooth stopping - Mobile optimized
   const startInertia = useCallback(() => {
     const drag = dragRef.current;
-    const inertiaViewport = activeViewportRef.current === 'osc' ? oscViewportRef : chartViewportRef;
 
     // Amplify initial velocity for more natural mobile feel
     drag.velocityX *= 1.5;
@@ -595,7 +706,7 @@ export default function MarketSniperIndicator() {
         return;
       }
 
-      handlePan(drag.velocityX, inertiaViewport);
+      handlePan(drag.velocityX);
       // Smoother deceleration curve for mobile
       drag.velocityX *= 0.92;
 
@@ -632,22 +743,28 @@ export default function MarketSniperIndicator() {
     return 'chart';
   }, [indicators.sniperOsc]);
 
-  // Mouse wheel handler
+  // Mouse wheel handler - TradingView-style instant response with smooth animation
   useEffect(() => {
     const canvas = chartRef.current;
     if (!canvas) return;
 
     const handleWheel = (e) => {
       e.preventDefault();
-      const section = detectSection(e.clientY);
-      activeViewportRef.current = section;
-      const vp = section === 'osc' ? oscViewportRef : chartViewportRef;
-      handleZoom(e.deltaY, e.clientX, e.clientY, vp);
+
+      // Normalize delta
+      let delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 16;
+      else if (e.deltaMode === 2) delta *= 100;
+
+      // Scale for consistent feel (smaller = more responsive)
+      delta = delta * 0.6;
+
+      handleZoom(delta, e.clientX, e.clientY);
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', handleWheel);
-  }, [handleZoom, detectSection]);
+  }, [handleZoom]);
 
   // Mouse drag handlers
   useEffect(() => {
@@ -682,7 +799,7 @@ export default function MarketSniperIndicator() {
       drag.velocityX = deltaX;
       drag.lastX = e.clientX;
 
-      handlePan(deltaX, currentViewport);
+      handlePan(deltaX);
     };
 
     const handleMouseUp = () => {
@@ -826,8 +943,45 @@ export default function MarketSniperIndicator() {
           Math.min(currentTouchViewport.current.maxCandleWidth, pinch.initialCandleWidth * scale)
         );
 
-        const deltaY = (pinch.initialCandleWidth - newCandleWidth) * 50;
-        handleZoom(deltaY, center.x, center.y, currentTouchViewport);
+        // Pinch zoom - SYNCS BOTH viewports
+        const viewport = chartViewportRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const chartWidth = rect.width - 75;
+        const priceData = marketData?.priceData;
+
+        if (priceData) {
+          const candleCount = priceData.length;
+          const cursorX = center.x - rect.left - 5;
+          const cursorPercent = Math.max(0, Math.min(1, cursorX / chartWidth));
+
+          const oldVisibleCount = chartWidth / viewport.candleWidth;
+          const newVisibleCount = chartWidth / newCandleWidth;
+          const indexUnderCursor = viewport.startIndex + oldVisibleCount * cursorPercent;
+
+          let newStart = indexUnderCursor - newVisibleCount * cursorPercent;
+          let newEnd = newStart + newVisibleCount;
+
+          if (newEnd > candleCount) {
+            newEnd = candleCount;
+            newStart = Math.max(0, candleCount - newVisibleCount);
+          }
+          if (newStart < 0) {
+            newStart = 0;
+            newEnd = Math.min(newVisibleCount, candleCount);
+          }
+
+          // Apply to BOTH viewports (instant for touch responsiveness)
+          chartViewportRef.current.candleWidth = newCandleWidth;
+          chartViewportRef.current.startIndex = newStart;
+          chartViewportRef.current.endIndex = newEnd;
+
+          // Also update target to stay in sync
+          targetViewportRef.current.candleWidth = newCandleWidth;
+          targetViewportRef.current.startIndex = newStart;
+          targetViewportRef.current.endIndex = newEnd;
+
+          scheduleRender();
+        }
 
         pinch.initialCandleWidth = newCandleWidth;
         pinch.initialDistance = currentDistance;
@@ -867,7 +1021,7 @@ export default function MarketSniperIndicator() {
           lastTouchX = touch.clientX;
           lastTouchTime = now;
 
-          handlePan(moveDeltaX, currentTouchViewport);
+          handlePan(moveDeltaX);
         }
       }
     };
@@ -931,7 +1085,7 @@ export default function MarketSniperIndicator() {
     }
   }, [marketData, livePrice, chartType, indicators, fullscreen, candleCountdown]);
 
-  // Cleanup animation frame on unmount
+  // Cleanup animation frames on unmount
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
@@ -1008,11 +1162,10 @@ export default function MarketSniperIndicator() {
     const candleWidth = chartVisibleRange.candleWidth;
     const visibleData = priceData.slice(startIdx, endIdx);
 
-    // Get visible range from oscillator viewport
-    const oscVisibleRange = getVisibleRange(priceData, chartWidth, oscViewportRef);
-    const oscStartIdx = oscVisibleRange.start;
-    const oscEndIdx = oscVisibleRange.end;
-    const oscCandleWidth = oscVisibleRange.candleWidth;
+    // Use SAME viewport for oscillator (keeps them synced)
+    const oscStartIdx = startIdx;
+    const oscEndIdx = endIdx;
+    const oscCandleWidth = candleWidth;
 
     if (visibleData.length === 0) return;
 
@@ -1878,7 +2031,7 @@ export default function MarketSniperIndicator() {
     : allAssets;
 
   return (
-    <div className={`bg-[#131722] overflow-hidden ${fullscreen ? 'fixed inset-0 z-50' : 'rounded-lg border border-[#363a45]'}`}>
+    <div ref={fullscreenContainerRef} className={`bg-[#131722] overflow-hidden ${fullscreen ? 'fixed inset-0 z-50' : 'rounded-lg border border-[#363a45]'}`}>
       {/* Mobile-Optimized Header */}
       <div className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]">
         {/* Left Section: Symbol + Timeframe */}
@@ -2062,7 +2215,7 @@ export default function MarketSniperIndicator() {
             <RefreshCw className={`h-5 w-5 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
-            onClick={() => setFullscreen(!fullscreen)}
+            onClick={toggleFullscreen}
             className="h-[44px] sm:h-[38px] w-[44px] sm:w-auto sm:px-2 text-[#787b86] hover:text-[#d1d4dc] active:bg-[#2a2e39] flex items-center justify-center transition-colors rounded"
             title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
@@ -2279,6 +2432,9 @@ export default function MarketSniperIndicator() {
                 imageRendering: 'crisp-edges',
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
+                willChange: 'transform',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
               }}
             />
 
@@ -2290,8 +2446,7 @@ export default function MarketSniperIndicator() {
                   const canvas = chartRef.current;
                   if (!canvas) return;
                   const rect = canvas.getBoundingClientRect();
-                  handleZoom(-100, rect.width / 2, rect.height / 2, chartViewportRef);
-                  handleZoom(-100, rect.width / 2, rect.height / 2, oscViewportRef);
+                  handleZoom(-100, rect.width / 2, rect.height / 2);
                 }}
                 className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
                 title="Zoom In"
@@ -2310,8 +2465,7 @@ export default function MarketSniperIndicator() {
                   const canvas = chartRef.current;
                   if (!canvas) return;
                   const rect = canvas.getBoundingClientRect();
-                  handleZoom(100, rect.width / 2, rect.height / 2, chartViewportRef);
-                  handleZoom(100, rect.width / 2, rect.height / 2, oscViewportRef);
+                  handleZoom(100, rect.width / 2, rect.height / 2);
                 }}
                 className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
                 title="Zoom Out"
@@ -2336,6 +2490,19 @@ export default function MarketSniperIndicator() {
                   </svg>
                 </button>
               )}
+
+              {/* Fullscreen Button */}
+              <button
+                onClick={toggleFullscreen}
+                className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
+                title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              >
+                {fullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </button>
             </div>
 
           </div>
