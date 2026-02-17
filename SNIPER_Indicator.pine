@@ -1,0 +1,314 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+//@version=5
+indicator("SNIPER", shorttitle="SNIPER", overlay=false, precision=2,
+         scale=scale.right, explicit_plot_zorder=true)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ███████╗███████╗████████╗████████╗██╗███╗   ██╗ ██████╗ ███████╗
+// ██╔════╝██╔════╝╚══██╔══╝╚══██╔══╝██║████╗  ██║██╔════╝ ██╔════╝
+// ███████╗█████╗     ██║      ██║   ██║██╔██╗ ██║██║  ███╗███████╗
+// ╚════██║██╔══╝     ██║      ██║   ██║██║╚██╗██║██║   ██║╚════██║
+// ███████║███████╗   ██║      ██║   ██║██║ ╚████║╚██████╔╝███████║
+// ╚══════╝╚══════╝   ╚═╝      ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BBWP PROPERTIES
+// ─────────────────────────────────────────────────────────────────────────────
+grp_bbwp = "BBWP PROPERTIES"
+bbwp_src = input.source(close, "Price Source", group=grp_bbwp)
+bbwp_basis_type = input.string("SMA", "Basis Type", options=["SMA", "EMA", "WMA", "VWMA", "HMA"], group=grp_bbwp)
+bbwp_length = input.int(13, "Length", minval=1, maxval=500, group=grp_bbwp)
+bbwp_lookback = input.int(252, "Lookback", minval=1, maxval=1000, group=grp_bbwp, tooltip="Number of bars for percentile calculation")
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LINE PLOT SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+grp_line = "LINE PLOT SETTINGS"
+color_type = input.string("Spectrum", "Color Type", options=["Spectrum", "Solid"], group=grp_line)
+solid_color = input.color(color.new(#4CAF50, 0), "Solid Color", group=grp_line)
+spectrum_type = input.string("High - Mid - Low", "Spectrum", options=["High - Mid - Low", "Bull - Bear"], group=grp_line)
+
+// Spectrum Colors
+color_high = input.color(color.new(#ef4444, 0), "High", inline="spectrum1", group=grp_line)
+color_mid_hi = input.color(color.new(#b8860b, 0), "Mid Hi", inline="spectrum1", group=grp_line)
+color_mid = input.color(color.new(#22c55e, 0), "Mid", inline="spectrum2", group=grp_line)
+color_mid_lo = input.color(color.new(#14b8a6, 0), "Mid Lo", inline="spectrum2", group=grp_line)
+color_low = input.color(color.new(#3b82f6, 0), "Low", inline="spectrum3", group=grp_line)
+line_width_input = input.int(2, "Line Width", minval=1, maxval=5, group=grp_line)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOVING AVERAGE SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+grp_ma = "MOVING AVERAGE SETTINGS"
+ma1_show = input.bool(true, "MA 1 Type", inline="ma1", group=grp_ma)
+ma1_type = input.string("SMA", "", options=["SMA", "EMA", "WMA", "HMA"], inline="ma1", group=grp_ma)
+ma1_color = input.color(color.new(#3b82f6, 0), "", inline="ma1", group=grp_ma)  // Blue
+ma1_length = input.int(5, "Length", minval=1, maxval=500, group=grp_ma)
+
+ma2_show = input.bool(true, "MA 2 Type", inline="ma2", group=grp_ma)
+ma2_type = input.string("SMA", "", options=["SMA", "EMA", "WMA", "HMA"], inline="ma2", group=grp_ma)
+ma2_color = input.color(color.new(#00ffff, 0), "", inline="ma2", group=grp_ma)  // Cyan
+ma2_length = input.int(8, "Length", minval=1, maxval=500, group=grp_ma)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMA 200 SETTINGS (White Line - Slowest)
+// ─────────────────────────────────────────────────────────────────────────────
+grp_ema200 = "EMA 200 SETTINGS"
+ema200_show = input.bool(true, "Show EMA 200", group=grp_ema200)
+ema200_length = input.int(200, "EMA 200 Length", minval=1, maxval=500, group=grp_ema200)
+ema200_color = input.color(color.new(#ffffff, 0), "EMA 200 Color", group=grp_ema200)  // White
+ema200_width = input.int(2, "EMA 200 Width", minval=1, maxval=5, group=grp_ema200)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VISUAL ALERTS
+// ─────────────────────────────────────────────────────────────────────────────
+grp_alerts = "VISUAL ALERTS"
+alerts_on = input.bool(true, "Alerts On", group=grp_alerts)
+extreme_high = input.int(98, "Extreme High", minval=80, maxval=100, group=grp_alerts)
+extreme_low = input.int(2, "Extreme Low", minval=0, maxval=20, group=grp_alerts)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ING SETTINGS (Indicator Lines)
+// ─────────────────────────────────────────────────────────────────────────────
+grp_ing = "ING SETTINGS"
+ing_period = input.int(7, "ING Period", minval=1, maxval=100, group=grp_ing)
+ing_source = input.source(close, "ING Source", group=grp_ing)
+pivot_right = input.int(5, "Pivot Lookback Right", minval=1, maxval=50, group=grp_ing)
+pivot_left = input.int(5, "Pivot Lookback Left", minval=1, maxval=50, group=grp_ing)
+max_lookback = input.int(60, "Max of Lookback Range", minval=10, maxval=200, group=grp_ing)
+min_lookback = input.int(5, "Min of Lookback Range", minval=1, maxval=50, group=grp_ing)
+ing_fast_color = input.color(color.new(#3b82f6, 0), "ING Fast Color", group=grp_ing)   // Blue
+ing_mid_color = input.color(color.new(#f87171, 0), "ING Mid Color", group=grp_ing)     // Red/Pink
+ing_slow_color = input.color(color.new(#84cc16, 0), "ING Slow Color", group=grp_ing)   // Green/Lime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOLLINGER BANDS SETTINGS (for BBWP calculation)
+// ─────────────────────────────────────────────────────────────────────────────
+grp_bb = "BOLLINGER BANDS"
+bb_length = input.int(20, "Length", minval=1, maxval=500, group=grp_bb)
+bb_stddev = input.float(2.0, "StdDev", minval=0.1, maxval=10, step=0.1, group=grp_bb)
+bb_offset = input.int(0, "Offset", minval=-500, maxval=500, group=grp_bb)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCALE & DISPLAY SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+grp_scale = "SCALE & DISPLAY"
+show_scale_high = input.bool(true, "Scale High (100)", inline="scale_h", group=grp_scale)
+scale_high_color = input.color(color.new(#ef4444, 0), "", inline="scale_h", group=grp_scale)
+scale_high_val = input.int(100, "", inline="scale_h", group=grp_scale)
+
+show_midline = input.bool(true, "Mid-Line", inline="mid", group=grp_scale)
+midline_color = input.color(color.new(#9ca3af, 50), "", inline="mid", group=grp_scale)
+midline_val = input.int(50, "", inline="mid", group=grp_scale)
+
+show_scale_low = input.bool(true, "Scale Low (0)", inline="scale_l", group=grp_scale)
+scale_low_color = input.color(color.new(#3b82f6, 0), "", inline="scale_l", group=grp_scale)
+scale_low_val = input.int(0, "", inline="scale_l", group=grp_scale)
+
+show_overbought = input.bool(true, "Overbought", inline="ob", group=grp_scale)
+overbought_color = input.color(color.new(#eab308, 50), "", inline="ob", group=grp_scale)
+overbought_val = input.int(80, "", inline="ob", group=grp_scale)
+
+show_oversold = input.bool(true, "Oversold", inline="os", group=grp_scale)
+oversold_color = input.color(color.new(#22d3ee, 50), "", inline="os", group=grp_scale)
+oversold_val = input.int(20, "", inline="os", group=grp_scale)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALCULATION SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+grp_calc = "CALCULATION"
+calc_timeframe = input.timeframe("", "Timeframe", group=grp_calc)
+wait_close = input.bool(true, "Wait for timeframe closes", group=grp_calc)
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ██████╗ █████╗ ██╗      ██████╗██╗   ██╗██╗      █████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗
+// ██╔════╝██╔══██╗██║     ██╔════╝██║   ██║██║     ██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+// ██║     ███████║██║     ██║     ██║   ██║██║     ███████║   ██║   ██║██║   ██║██╔██╗ ██║███████╗
+// ██║     ██╔══██║██║     ██║     ██║   ██║██║     ██╔══██║   ██║   ██║██║   ██║██║╚██╗██║╚════██║
+// ╚██████╗██║  ██║███████╗╚██████╗╚██████╔╝███████╗██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║███████║
+//  ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Helper Functions ─────────────────────────────────────────────────────────
+ma_calc(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+        "HMA" => ta.hma(source, length)
+        => ta.sma(source, length)
+
+// ── Bollinger Band Width Calculation ─────────────────────────────────────────
+basis = ma_calc(bbwp_src, bb_length, bbwp_basis_type)
+dev = bb_stddev * ta.stdev(bbwp_src, bb_length)
+upper_bb = basis + dev
+lower_bb = basis - dev
+bb_width = (upper_bb - lower_bb) / basis * 100
+
+// ── BBWP Percentile Calculation ──────────────────────────────────────────────
+bbwp_percentile(source, lookback) =>
+    count = 0.0
+    for i = 1 to lookback
+        if source[i] <= source
+            count += 1
+    count / lookback * 100
+
+bbwp = bbwp_percentile(bb_width, bbwp_lookback)
+
+// ── Spectrum Color Function ──────────────────────────────────────────────────
+get_spectrum_color(value) =>
+    if value >= 80
+        color_high
+    else if value >= 60
+        color_mid_hi
+    else if value >= 40
+        color_mid
+    else if value >= 20
+        color_mid_lo
+    else
+        color_low
+
+plot_color = color_type == "Spectrum" ? get_spectrum_color(bbwp) : solid_color
+
+// ── ING Calculation (Stochastic-based Indicator) ─────────────────────────────
+ing_fast = ta.stoch(ing_source, high, low, ing_period)
+ing_mid = ta.sma(ing_fast, 3)
+ing_slow = ta.sma(ing_mid, 3)
+
+// ── EMA 200 Calculation ──────────────────────────────────────────────────────
+ema200_value = ta.ema(close, ema200_length)
+// Scale EMA 200 to 0-100 range based on price position
+ema200_highest = ta.highest(high, bbwp_lookback)
+ema200_lowest = ta.lowest(low, bbwp_lookback)
+ema200_scaled = (ema200_value - ema200_lowest) / (ema200_highest - ema200_lowest) * 100
+
+// ── MA Calculations on BBWP ──────────────────────────────────────────────────
+ma1_value = ma_calc(bbwp, ma1_length, ma1_type)
+ma2_value = ma_calc(bbwp, ma2_length, ma2_type)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ██████╗ ██╗      ██████╗ ████████╗████████╗██╗███╗   ██╗ ██████╗
+// ██╔══██╗██║     ██╔═══██╗╚══██╔══╝╚══██╔══╝██║████╗  ██║██╔════╝
+// ██████╔╝██║     ██║   ██║   ██║      ██║   ██║██╔██╗ ██║██║  ███╗
+// ██╔═══╝ ██║     ██║   ██║   ██║      ██║   ██║██║╚██╗██║██║   ██║
+// ██║     ███████╗╚██████╔╝   ██║      ██║   ██║██║ ╚████║╚██████╔╝
+// ╚═╝     ╚══════╝ ╚═════╝    ╚═╝      ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Scale Lines (IMPORTANT: These ensure indicator NEVER touches ground) ─────
+// Fixed scale from 0 to 100
+hline_100 = hline(100, "Scale High", scale_high_color, hline.style_solid, 1, display = show_scale_high ? display.all : display.none)
+hline_80 = hline(80, "Overbought", overbought_color, hline.style_dotted, 1, display = show_overbought ? display.all : display.none)
+hline_50 = hline(50, "Mid-Line", midline_color, hline.style_dashed, 2, display = show_midline ? display.all : display.none)
+hline_20 = hline(20, "Oversold", oversold_color, hline.style_dotted, 1, display = show_oversold ? display.all : display.none)
+hline_0 = hline(0, "Scale Low", scale_low_color, hline.style_solid, 1, display = show_scale_low ? display.all : display.none)
+
+// ── Fill zones for better visibility ─────────────────────────────────────────
+fill(hline_100, hline_80, color.new(color_high, 90), "Extreme High Zone")
+fill(hline_20, hline_0, color.new(color_low, 90), "Extreme Low Zone")
+
+// ── Main BBWP Plot with Fill ─────────────────────────────────────────────────
+plot_bbwp = plot(bbwp, "BBWP", plot_color, line_width_input, plot.style_line)
+plot_zero = plot(0, "Zero Line", color.new(color.black, 100), display=display.none)
+fill(plot_bbwp, plot_zero, color.new(plot_color, 85), "BBWP Fill")
+
+// ── Moving Averages ──────────────────────────────────────────────────────────
+plot(ma1_show ? ma1_value : na, "MA 1", ma1_color, 1, plot.style_line)
+plot(ma2_show ? ma2_value : na, "MA 2", ma2_color, 1, plot.style_line)
+
+// ── EMA 200 (White line - slowest, most prominent) ───────────────────────────
+plot(ema200_show ? ema200_scaled : na, "EMA 200", ema200_color, ema200_width, plot.style_line)
+
+// ── ING Plots (Blue, Red/Pink, Green/Lime) ───────────────────────────────────
+plot(ing_fast, "ING Fast", ing_fast_color, 1.5, plot.style_line)   // Blue line
+plot(ing_mid, "ING Mid", ing_mid_color, 1.5, plot.style_line)      // Red/Pink line
+plot(ing_slow, "ING Slow", ing_slow_color, 1.5, plot.style_line)   // Green/Lime line
+
+// ── Bollinger Bands on Oscillator ────────────────────────────────────────────
+bbwp_basis = ta.sma(bbwp, bb_length)
+bbwp_dev = bb_stddev * ta.stdev(bbwp, bb_length)
+bbwp_upper = math.min(bbwp_basis + bbwp_dev, 100)  // Cap at 100
+bbwp_lower = math.max(bbwp_basis - bbwp_dev, 0)    // Floor at 0
+
+plot(bbwp_upper, "Upper Band", color.new(#6b7280, 50), 1, plot.style_line, offset=bb_offset)
+plot(bbwp_lower, "Lower Band", color.new(#6b7280, 50), 1, plot.style_line, offset=bb_offset)
+plot(bbwp_basis, "Basis", color.new(#9ca3af, 30), 1, plot.style_line, offset=bb_offset)
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  █████╗ ██╗     ███████╗██████╗ ████████╗███████╗
+// ██╔══██╗██║     ██╔════╝██╔══██╗╚══██╔══╝██╔════╝
+// ███████║██║     █████╗  ██████╔╝   ██║   ███████╗
+// ██╔══██║██║     ██╔══╝  ██╔══██╗   ██║   ╚════██║
+// ██║  ██║███████╗███████╗██║  ██║   ██║   ███████║
+// ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Visual Alert Markers ─────────────────────────────────────────────────────
+extreme_high_cond = bbwp >= extreme_high
+extreme_low_cond = bbwp <= extreme_low
+
+plotshape(alerts_on and extreme_high_cond, "Extreme High Alert", shape.triangledown, location.top, color_high, size=size.tiny)
+plotshape(alerts_on and extreme_low_cond, "Extreme Low Alert", shape.triangleup, location.bottom, color_low, size=size.tiny)
+
+// ── Background coloring for extreme zones ────────────────────────────────────
+bgcolor(alerts_on and extreme_high_cond ? color.new(color_high, 90) : na, title="Extreme High BG")
+bgcolor(alerts_on and extreme_low_cond ? color.new(color_low, 90) : na, title="Extreme Low BG")
+
+// ── Alert Conditions ─────────────────────────────────────────────────────────
+alertcondition(extreme_high_cond, "Extreme High", "SNIPER: Extreme High - Potential Reversal Zone")
+alertcondition(extreme_low_cond, "Extreme Low", "SNIPER: Extreme Low - Potential Entry Zone")
+alertcondition(ta.crossover(bbwp, overbought_val), "Cross Above 80", "SNIPER: Crossed above overbought (80)")
+alertcondition(ta.crossunder(bbwp, oversold_val), "Cross Below 20", "SNIPER: Crossed below oversold (20)")
+alertcondition(ta.crossover(bbwp, midline_val), "Cross Above 50", "SNIPER: Crossed above midline (50)")
+alertcondition(ta.crossunder(bbwp, midline_val), "Cross Below 50", "SNIPER: Crossed below midline (50)")
+
+// ── EMA 200 Alerts ───────────────────────────────────────────────────────────
+alertcondition(ta.crossover(close, ema200_value), "Price Cross Above EMA200", "SNIPER: Price crossed above EMA 200")
+alertcondition(ta.crossunder(close, ema200_value), "Price Cross Below EMA200", "SNIPER: Price crossed below EMA 200")
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ██╗███╗   ██╗███████╗ ██████╗
+// ██║████╗  ██║██╔════╝██╔═══██╗
+// ██║██╔██╗ ██║█████╗  ██║   ██║
+// ██║██║╚██╗██║██╔══╝  ██║   ██║
+// ██║██║ ╚████║██║     ╚██████╔╝
+// ╚═╝╚═╝  ╚═══╝╚═╝      ╚═════╝
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Info Table ───────────────────────────────────────────────────────────────
+var table info_table = table.new(position.top_right, 3, 7, bgcolor=color.new(#1a1a1a, 20), border_width=1)
+
+if barstate.islast
+    // Header
+    table.cell(info_table, 0, 0, "SNIPER", text_color=color.new(#00bcd4, 0), text_size=size.small, text_halign=text.align_center)
+    table.merge_cells(info_table, 0, 0, 2, 0)
+
+    // EMA 200 (White)
+    table.cell(info_table, 0, 1, "EMA 200:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 1, str.tostring(ema200_scaled, "#.#"), text_color=color.white, text_size=size.tiny)
+
+    // ING Mid (Red/Pink)
+    table.cell(info_table, 0, 2, "ING Mid:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 2, str.tostring(ing_mid, "#.#"), text_color=ing_mid_color, text_size=size.tiny)
+
+    // ING Slow (Green)
+    table.cell(info_table, 0, 3, "ING Slow:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 3, str.tostring(ing_slow, "#.#"), text_color=ing_slow_color, text_size=size.tiny)
+
+    // ING Fast (Blue)
+    table.cell(info_table, 0, 4, "ING Fast:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 4, str.tostring(ing_fast, "#.#"), text_color=ing_fast_color, text_size=size.tiny)
+
+    // BBWP Value
+    bbwp_text_color = bbwp >= 80 ? color_high : bbwp <= 20 ? color_low : color.white
+    table.cell(info_table, 0, 5, "BBWP:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 5, str.tostring(bbwp, "#.#"), text_color=bbwp_text_color, text_size=size.tiny)
+
+    // EMA 200 Position (Above/Below)
+    ema_status = close > ema200_value ? "▲ Above" : "▼ Below"
+    ema_color = close > ema200_value ? color.new(#22c55e, 0) : color.new(#ef4444, 0)
+    table.cell(info_table, 0, 6, "Price:", text_color=color.gray, text_size=size.tiny)
+    table.cell(info_table, 1, 6, ema_status, text_color=ema_color, text_size=size.tiny)

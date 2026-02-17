@@ -1,0 +1,482 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* TradingView-inspired dark theme */
+  --background: #131722;
+  --foreground: #d1d4dc;
+  --card: #1e222d;
+  --card-hover: #252a37;
+  --accent: #2962ff;
+  --accent-hover: #3d72ff;
+  --success: #26a69a;
+  --danger: #ef5350;
+  --muted: #787b86;
+  --border: #2a2e39;
+  --border-light: #363a45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Prevent text selection on interactive elements */
+button, select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom scrollbar for visible scrollbars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #363a45 #1e222d;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #1e222d;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #363a45;
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #4a4e59;
+  }
+}
+
+/* Smooth transitions for interactive elements only */
+button,
+a,
+input,
+select,
+.transition-all {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar for TradingView-style dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e222d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #363a45;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4e59;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(41, 98, 255, 0.3);
+  color: #fff;
+}
+
+/* Chart container specific styles */
+.chart-container {
+  touch-action: pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* TradingView-like button styles */
+.tv-button {
+  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all;
+  @apply bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45];
+}
+
+.tv-button-primary {
+  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all;
+  @apply bg-[#2962ff] text-white hover:bg-[#3d72ff];
+  @apply shadow-lg shadow-[#2962ff]/20;
+}
+
+.tv-button-ghost {
+  @apply px-2 py-1.5 rounded-lg text-sm font-medium transition-all;
+  @apply text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39];
+}
+
+/* Price animation */
+@keyframes price-up {
+  0% { background-color: rgba(38, 166, 154, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes price-down {
+  0% { background-color: rgba(239, 83, 80, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.price-flash-up {
+  animation: price-up 0.5s ease-out;
+}
+
+.price-flash-down {
+  animation: price-down 0.5s ease-out;
+}
+
+/* Pulse animation for live indicator */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply bg-[#252a37] border-[#363a45];
+  transform: translateY(-1px);
+}
+
+/* Input focus styles */
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.2);
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Larger touch targets */
+  button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* Prevent zoom on input focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Better spacing on mobile */
+  .mobile-padding {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Full-width buttons on mobile */
+  .mobile-full-width {
+    width: 100%;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 640px) and (max-width: 1024px) {
+  /* Slightly larger touch targets */
+  button {
+    min-height: 40px;
+  }
+}
+
+/* Disable double-tap zoom on interactive elements */
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #2962ff 0%, #1e53e4 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #26a69a 0%, #1e8e82 100%);
+}
+
+.gradient-danger {
+  background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+}
+
+/* Backdrop blur support */
+@supports (backdrop-filter: blur(10px)) {
+  .backdrop-blur-supported {
+    backdrop-filter: blur(10px);
+    background-color: rgba(19, 23, 34, 0.8);
+  }
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Lightweight Charts container styling */
+.tv-lightweight-charts {
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif !important;
+}
+
+/* Override lightweight-charts internal styles for better appearance */
+.tv-lightweight-charts .pane {
+  border-radius: 0 !important;
+}
+
+/* Price scale styling */
+.tv-lightweight-charts .price-axis {
+  background: transparent !important;
+}
+
+/* Time scale styling */
+.tv-lightweight-charts .time-axis {
+  background: transparent !important;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* Tooltip styles */
+.tooltip {
+  @apply absolute z-50 px-2 py-1 text-xs text-white bg-[#2a2e39] rounded shadow-lg;
+  @apply opacity-0 pointer-events-none transition-opacity;
+}
+
+.tooltip-trigger:hover .tooltip {
+  @apply opacity-100;
+}
+
+/* Status badges */
+.badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.badge-success {
+  @apply bg-[#26a69a]/20 text-[#26a69a];
+}
+
+.badge-danger {
+  @apply bg-[#ef5350]/20 text-[#ef5350];
+}
+
+.badge-warning {
+  @apply bg-amber-500/20 text-amber-400;
+}
+
+.badge-info {
+  @apply bg-[#2962ff]/20 text-[#2962ff];
+}
+
+/* Focus visible styles for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Indicator toggle checkbox animation */
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.indicator-checkbox-enter {
+  animation: checkmark 0.15s ease-out forwards;
+}
+
+/* Smooth dropdown animation */
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dropdownExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+}
+
+.dropdown-enter {
+  animation: dropdownEnter 0.15s ease-out forwards;
+}
+
+.dropdown-exit {
+  animation: dropdownExit 0.1s ease-in forwards;
+}
+
+/* Glow effect for active indicators */
+.indicator-glow {
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Chart smoothness */
+.chart-smooth {
+  image-rendering: optimizeQuality;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Status bar scroll smoothness */
+.status-bar-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Indicator value transition */
+.indicator-value {
+  transition: color 0.2s ease-out;
+}
+
+/* Signal badge pulse */
+@keyframes signalPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.signal-pulse {
+  animation: signalPulse 2s ease-in-out infinite;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode adjustments */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #4a4e59;
+    --muted: #9a9da6;
+  }
+}
+
+/* Dark mode is default, but support light mode override if needed */
+@media (prefers-color-scheme: light) {
+  /* Keep dark theme as it's a trading app */
+  :root {
+    color-scheme: dark;
+  }
+}
