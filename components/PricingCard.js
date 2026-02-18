@@ -30,7 +30,7 @@ export default function PricingCard({
     >
       {isPopular && (
         <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-          <div className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg shadow-cyan-500/25">
+          <div className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-light shadow-lg shadow-cyan-500/25">
             <Star className="h-3.5 w-3.5" />
             <span>Most Popular</span>
           </div>
@@ -38,10 +38,10 @@ export default function PricingCard({
       )}
 
       <div className={`text-center ${isPopular ? 'pt-4' : ''} mb-6`}>
-        <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
+        <h3 className="text-lg font-light text-white mb-1">{title}</h3>
         <div className="flex items-baseline justify-center gap-1">
-          <span className="text-gray-400">₹</span>
-          <span className={`text-4xl font-bold bg-gradient-to-r ${getGradient()} bg-clip-text text-transparent`}>
+          <span className="text-gray-400">$</span>
+          <span className={`text-4xl font-normal bg-gradient-to-r ${getGradient()} bg-clip-text text-transparent`}>
             {price.toLocaleString()}
           </span>
         </div>
@@ -63,7 +63,7 @@ export default function PricingCard({
         onSelect ? (
           <button
             onClick={() => onSelect(plan)}
-            className={`w-full py-3 rounded-xl font-semibold transition-all text-sm ${
+            className={`w-full py-3 rounded-xl font-light transition-all text-sm ${
               isPopular
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25'
                 : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
@@ -74,7 +74,7 @@ export default function PricingCard({
         ) : (
           <Link
             href={`/register?plan=${plan}`}
-            className={`block w-full py-3 rounded-xl font-semibold text-center transition-all text-sm ${
+            className={`block w-full py-3 rounded-xl font-light text-center transition-all text-sm ${
               isPopular
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25'
                 : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'

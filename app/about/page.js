@@ -113,8 +113,8 @@ export default function AboutPage() {
         </div>
 
         {/* Glow effects */}
-        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-orange-500/10 rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[60px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-orange-500/10 rounded-full blur-[50px]" />
 
         <div className={`relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${isVisible('about-hero') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-4 py-1.5 mb-6">
@@ -122,7 +122,7 @@ export default function AboutPage() {
             <span className="text-cyan-400 text-sm font-medium">About Market Sniper</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-normal text-white mb-6 leading-tight">
             Empowering Traders with
             <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
               Precision Signals
@@ -143,7 +143,7 @@ export default function AboutPage() {
             {stats.map((stat, index) => (
               <div key={index} className="text-center p-6 bg-white/5 rounded-2xl border border-white/10 hover:border-cyan-500/30 transition-all">
                 <stat.icon className="h-6 w-6 text-cyan-400 mx-auto mb-3" />
-                <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-1">
+                <div className="text-3xl font-normal bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-1">
                   {stat.value}
                 </div>
                 <div className="text-gray-500 text-sm">{stat.label}</div>
@@ -169,7 +169,7 @@ export default function AboutPage() {
                 <span className="text-orange-400 text-sm font-medium">Our Story</span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6 leading-tight">
+              <h2 className="text-3xl sm:text-4xl font-normal text-white mb-6 leading-tight">
                 From Wall Street
                 <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
                   to Your Screen
@@ -195,14 +195,14 @@ export default function AboutPage() {
               <div className="flex flex-wrap gap-4 mt-8">
                 <Link
                   href="/register"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-normal rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                 >
                   Join Our Community
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="px-6 py-3 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-all"
+                  className="px-6 py-3 bg-white/5 border border-white/10 text-white font-normal rounded-xl hover:bg-white/10 transition-all"
                 >
                   View Dashboard
                 </Link>
@@ -221,11 +221,11 @@ export default function AboutPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-xs text-gray-400">Total Signals Delivered</div>
-                      <div className="text-2xl font-bold text-cyan-400">1.2M+</div>
+                      <div className="text-2xl font-normal text-cyan-400">1.2M+</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-gray-400">Avg. Accuracy</div>
-                      <div className="text-2xl font-bold text-emerald-400">85%</div>
+                      <div className="text-2xl font-normal text-emerald-400">85%</div>
                     </div>
                   </div>
                 </div>
@@ -242,7 +242,7 @@ export default function AboutPage() {
         className="relative py-24"
       >
         <div className="absolute inset-0 bg-[#030712]" />
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[60px]" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 transition-all duration-1000 ${isVisible('values') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
@@ -250,7 +250,7 @@ export default function AboutPage() {
               <Shield className="h-4 w-4 text-cyan-400" />
               <span className="text-cyan-400 text-sm font-medium">Our Values</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl font-normal text-white mb-4">
               What We <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Stand For</span>
             </h2>
           </div>
@@ -265,7 +265,7 @@ export default function AboutPage() {
                 <div className="inline-flex p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-xl mb-4 group-hover:scale-110 transition-transform">
                   <value.icon className="h-6 w-6 text-cyan-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{value.title}</h3>
+                <h3 className="text-lg font-normal text-white mb-2">{value.title}</h3>
                 <p className="text-gray-400 text-sm">{value.description}</p>
               </div>
             ))}
@@ -283,7 +283,7 @@ export default function AboutPage() {
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 transition-all duration-1000 ${isVisible('timeline') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl font-normal text-white mb-4">
               Our <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Journey</span>
             </h2>
           </div>
@@ -307,8 +307,8 @@ export default function AboutPage() {
                   {/* Content */}
                   <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-6 hover:border-cyan-500/30 transition-all">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-cyan-400 font-bold">{milestone.year}</span>
-                      <span className="text-white font-semibold">{milestone.title}</span>
+                      <span className="text-cyan-400 font-normal">{milestone.year}</span>
+                      <span className="text-white font-normal">{milestone.title}</span>
                     </div>
                     <p className="text-gray-400 text-sm">{milestone.description}</p>
                   </div>
@@ -326,7 +326,7 @@ export default function AboutPage() {
         className="relative py-24"
       >
         <div className="absolute inset-0 bg-[#030712]" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[60px]" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 transition-all duration-1000 ${isVisible('team') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
@@ -334,7 +334,7 @@ export default function AboutPage() {
               <Users className="h-4 w-4 text-orange-400" />
               <span className="text-orange-400 text-sm font-medium">Our Team</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl font-normal text-white mb-4">
               Meet the <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Experts</span>
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
@@ -350,10 +350,10 @@ export default function AboutPage() {
                 style={{ transitionDelay: `${index * 100}ms` }}
               >
                 {/* Avatar */}
-                <div className={`w-20 h-20 mx-auto rounded-full bg-gradient-to-r ${member.color} flex items-center justify-center text-white text-2xl font-bold mb-4 group-hover:scale-110 transition-transform`}>
+                <div className={`w-20 h-20 mx-auto rounded-full bg-gradient-to-r ${member.color} flex items-center justify-center text-white text-2xl font-normal mb-4 group-hover:scale-110 transition-transform`}>
                   {member.initials}
                 </div>
-                <h3 className="text-lg font-semibold text-white">{member.name}</h3>
+                <h3 className="text-lg font-normal text-white">{member.name}</h3>
                 <div className="text-cyan-400 text-sm mb-3">{member.role}</div>
                 <p className="text-gray-400 text-sm">{member.description}</p>
               </div>
@@ -377,7 +377,7 @@ export default function AboutPage() {
           <div className="inline-flex p-4 bg-gradient-to-r from-cyan-500/20 to-orange-500/20 rounded-2xl mb-6">
             <Zap className="h-10 w-10 text-cyan-400" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+          <h2 className="text-3xl sm:text-4xl font-normal text-white mb-4">
             Ready to Start
             <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
               Your Trading Journey?
@@ -390,14 +390,14 @@ export default function AboutPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-normal rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
             >
               Start Free Trial
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/pricing"
-              className="px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-all"
+              className="px-8 py-4 bg-white/5 border border-white/10 text-white font-normal rounded-xl hover:bg-white/10 transition-all"
             >
               View Pricing
             </Link>

@@ -48,9 +48,9 @@ export default function PaymentTable({ payments = [] }) {
   };
 
   const formatAmount = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'USD',
       maximumFractionDigits: 0,
     }).format(amount);
   };

@@ -230,7 +230,7 @@ export default function AdminPage() {
                     {payment.userId?.name || 'User'}
                   </span>
                   <span className="text-accent font-medium">
-                    ₹{payment.amount}
+                    ${payment.amount}
                   </span>
                 </div>
               ))}

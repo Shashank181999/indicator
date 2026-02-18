@@ -18,7 +18,7 @@ export default function Footer() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-white mb-1">
+              <h3 className="text-lg sm:text-xl font-normal text-white mb-1">
                 Get Trading Insights
               </h3>
               <p className="text-gray-500 text-sm">
@@ -31,7 +31,7 @@ export default function Footer() {
                 placeholder="Enter email"
                 className="flex-1 sm:w-56 px-4 py-2.5 bg-white/5 border border-cyan-500/20 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
               />
-              <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-cyan-500/25">
+              <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-light rounded-lg transition-all hover:shadow-lg hover:shadow-cyan-500/25">
                 <Send className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -54,7 +54,7 @@ export default function Footer() {
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-normal text-white">
                   Market<span className="text-cyan-400">Sniper</span>
                 </span>
               </div>
@@ -67,7 +67,7 @@ export default function Footer() {
                 <a
                   key={index}
                   href="#"
-                  className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all text-xs font-medium"
+                  className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all text-xs font-light"
                 >
                   {label}
                 </a>
@@ -77,7 +77,7 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white text-sm font-medium mb-4">Links</h3>
+            <h3 className="text-white text-sm font-light mb-4">Links</h3>
             <ul className="space-y-2.5">
               {[
                 { href: '/', label: 'Home' },
@@ -99,7 +99,7 @@ export default function Footer() {
 
           {/* Products */}
           <div>
-            <h3 className="text-white text-sm font-medium mb-4">Indicators</h3>
+            <h3 className="text-white text-sm font-light mb-4">Indicators</h3>
             <ul className="space-y-2.5">
               {[
                 'Market Sniper',
@@ -118,7 +118,7 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="text-white text-sm font-medium mb-4">Contact</h3>
+            <h3 className="text-white text-sm font-light mb-4">Contact</h3>
             <ul className="space-y-2.5">
               <li>
                 <a href="mailto:support@marketsniper.com" className="text-gray-500 hover:text-cyan-400 transition-colors text-sm flex items-center gap-2">

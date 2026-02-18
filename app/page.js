@@ -23,21 +23,35 @@ export default function HomePage() {
   const [visibleSections, setVisibleSections] = useState(new Set());
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setVisibleSections((prev) => new Set([...prev, entry.target.id]));
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
+    // Use requestIdleCallback for non-critical animation setup
+    const setupObserver = () => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setVisibleSections((prev) => new Set([...prev, entry.target.id]));
+              // Unobserve after first intersection for better performance
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      );
 
-    const sections = document.querySelectorAll('[data-animate]');
-    sections.forEach((section) => observer.observe(section));
+      const sections = document.querySelectorAll('[data-animate]');
+      sections.forEach((section) => observer.observe(section));
 
-    return () => observer.disconnect();
+      return () => observer.disconnect();
+    };
+
+    // Delay observer setup to prioritize page render
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(setupObserver);
+      return () => cancelIdleCallback(id);
+    } else {
+      const timer = setTimeout(setupObserver, 100);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const isVisible = (id) => visibleSections.has(id);
@@ -85,14 +99,14 @@ export default function HomePage() {
       >
         {/* Background */}
         <div className="absolute inset-0">
-          <img src="/hero-bg.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src="/hero-bg.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" loading="eager" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#030712] via-[#030712]/95 to-[#030712]/70" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-transparent to-[#030712]/80" />
         </div>
 
-        {/* Glow effects */}
-        <div className="absolute top-1/3 left-0 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/3 right-0 w-[400px] h-[400px] bg-orange-500/10 rounded-full blur-[120px]" />
+        {/* Glow effects - reduced blur for better performance */}
+        <div className="absolute top-1/3 left-0 w-[400px] h-[400px] bg-cyan-500/8 rounded-full blur-[80px]" />
+        <div className="absolute bottom-1/3 right-0 w-[300px] h-[300px] bg-orange-500/8 rounded-full blur-[60px]" />
 
         {/* Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
@@ -109,7 +123,7 @@ export default function HomePage() {
               </div>
 
               {/* Heading */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-normal text-white mb-6 leading-tight">
                 Trade Smarter with
                 <span className="block bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   AI-Powered Signals
@@ -143,7 +157,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <Link
                   href="/register"
-                  className="group relative overflow-hidden px-8 py-4 rounded-xl font-semibold text-white transition-all hover:scale-105 text-center"
+                  className="group relative overflow-hidden px-8 py-4 rounded-xl font-normal text-white transition-all hover:scale-105 text-center"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600" />
                   <span className="relative flex items-center justify-center gap-2">
@@ -153,7 +167,7 @@ export default function HomePage() {
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="group flex items-center justify-center gap-2 px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 hover:border-cyan-500/30 transition-all"
+                  className="group flex items-center justify-center gap-2 px-8 py-4 bg-white/5 border border-white/10 text-white font-normal rounded-xl hover:bg-white/10 hover:border-cyan-500/30 transition-all"
                 >
                   <Play className="h-4 w-4 text-cyan-400" />
                   Watch Demo
@@ -183,25 +197,25 @@ export default function HomePage() {
                 {/* Card Header */}
                 <div className="flex items-center justify-between p-4 border-b border-white/10">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center text-white font-bold">₿</div>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center text-white font-normal">₿</div>
                     <div>
-                      <div className="text-white font-semibold">BTC/USDT</div>
+                      <div className="text-white font-normal">BTC/USDT</div>
                       <div className="text-xs text-gray-500">Bitcoin</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-emerald-400">$98,432.50</div>
+                    <div className="text-xl font-normal text-emerald-400">$98,432.50</div>
                     <div className="text-xs text-emerald-400">+2.34%</div>
                   </div>
                 </div>
 
                 {/* Chart Image */}
                 <div className="relative h-48">
-                  <img src="/hero-bg.jpg" alt="" className="w-full h-full object-cover opacity-60" />
+                  <img src="/hero-bg.jpg" alt="" className="w-full h-full object-cover opacity-60" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0a1628] via-transparent to-transparent" />
 
                   {/* Signal overlay */}
-                  <div className="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg shadow-emerald-500/30">
+                  <div className="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-normal px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg shadow-emerald-500/30">
                     <TrendingUp className="h-3.5 w-3.5" />
                     BUY SIGNAL
                   </div>
@@ -217,7 +231,7 @@ export default function HomePage() {
                   ].map((item, i) => (
                     <div key={i} className="bg-[#0a1628] p-3 text-center">
                       <div className="text-xs text-gray-500 mb-1">{item.label}</div>
-                      <div className={`font-bold ${item.color}`}>{item.value}</div>
+                      <div className={`font-normal ${item.color}`}>{item.value}</div>
                     </div>
                   ))}
                 </div>
@@ -231,7 +245,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <div className="text-xs text-gray-400">Win Rate</div>
-                    <div className="text-lg font-bold text-emerald-400">85%</div>
+                    <div className="text-lg font-normal text-emerald-400">85%</div>
                   </div>
                 </div>
               </div>
@@ -243,7 +257,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <div className="text-xs text-gray-400">Traders</div>
-                    <div className="text-lg font-bold text-cyan-400">10K+</div>
+                    <div className="text-lg font-normal text-cyan-400">10K+</div>
                   </div>
                 </div>
               </div>
@@ -298,13 +312,13 @@ export default function HomePage() {
         {/* Chart image decoration */}
         <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 overflow-hidden">
           <img
-            src="https://images.pexels.com/photos/6770775/pexels-photo-6770775.jpeg?auto=compress&cs=tinysrgb&w=800"
+            loading="lazy" src="https://images.pexels.com/photos/6770775/pexels-photo-6770775.jpeg?auto=compress&cs=tinysrgb&w=800"
             alt=""
             className="w-full h-full object-cover"
           />
         </div>
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[60px]" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[60px]" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 sm:mb-16 transition-all duration-1000 ${isVisible('features') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
@@ -312,7 +326,7 @@ export default function HomePage() {
               <Zap className="h-4 w-4 text-cyan-400" />
               <span className="text-cyan-400 text-sm font-medium">Powerful Features</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-4">
               Everything You Need to
               <span className="block sm:inline bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent"> Trade Smarter</span>
             </h2>
@@ -333,7 +347,7 @@ export default function HomePage() {
                   <div className="inline-flex p-3 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
                     <feature.icon className="h-6 w-6 text-cyan-400" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">{feature.title}</h3>
+                  <h3 className="text-lg sm:text-xl font-normal text-white mb-2">{feature.title}</h3>
                   <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
                 </div>
               </div>
@@ -363,6 +377,8 @@ export default function HomePage() {
                     muted
                     loop
                     playsInline
+                    preload="none"
+                    poster="/dashboard-chart.jpg"
                     className="absolute inset-0 w-full h-full object-cover"
                   >
                     <source src="/trading-video.mp4" type="video/mp4" />
@@ -383,26 +399,26 @@ export default function HomePage() {
                   {/* Price display */}
                   <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/10">
                     <div className="text-xs text-gray-400">BTC/USDT</div>
-                    <div className="text-xl font-bold text-emerald-400">$98,432.50</div>
+                    <div className="text-xl font-normal text-emerald-400">$98,432.50</div>
                   </div>
 
                   {/* Stats overlay */}
                   <div className="absolute bottom-4 left-4 right-4 flex gap-3">
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">24h Change</div>
-                      <div className="text-lg font-bold text-emerald-400">+2.34%</div>
+                      <div className="text-lg font-normal text-emerald-400">+2.34%</div>
                     </div>
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">Signal</div>
-                      <div className="text-lg font-bold text-cyan-400">BUY</div>
+                      <div className="text-lg font-normal text-cyan-400">BUY</div>
                     </div>
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">RSI</div>
-                      <div className="text-lg font-bold text-orange-400">68.5</div>
+                      <div className="text-lg font-normal text-orange-400">68.5</div>
                     </div>
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">Volume</div>
-                      <div className="text-lg font-bold text-purple-400">2.4B</div>
+                      <div className="text-lg font-normal text-purple-400">2.4B</div>
                     </div>
                   </div>
                 </div>
@@ -415,7 +431,7 @@ export default function HomePage() {
                 <Play className="h-4 w-4 text-orange-400" />
                 <span className="text-orange-400 text-sm font-medium">See It In Action</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-4 leading-tight">
                 Watch How Traders
                 <span className="block bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent">
                   Make Profits Daily
@@ -459,14 +475,14 @@ export default function HomePage() {
         {/* Chart background */}
         <div className="absolute inset-0 opacity-10 overflow-hidden">
           <img
-            src="https://images.pexels.com/photos/6802042/pexels-photo-6802042.jpeg?auto=compress&cs=tinysrgb&w=1920"
+            loading="lazy" src="https://images.pexels.com/photos/6802042/pexels-photo-6802042.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt=""
             className="w-full h-full object-cover"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-[#030712] via-transparent to-[#030712]" />
-        <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[60px]" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[60px]" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 transition-all duration-1000 ${isVisible('testimonials') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
@@ -474,7 +490,7 @@ export default function HomePage() {
               <Users className="h-4 w-4 text-emerald-400" />
               <span className="text-emerald-400 text-sm font-medium">Trusted by Traders</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-4">
               What Our <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Traders Say</span>
             </h2>
           </div>
@@ -512,7 +528,7 @@ export default function HomePage() {
                 style={{ transitionDelay: `${index * 150}ms` }}
               >
                 <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${testimonial.color} flex items-center justify-center text-white font-bold text-sm`}>
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${testimonial.color} flex items-center justify-center text-white font-normal text-sm`}>
                     {testimonial.avatar}
                   </div>
                   <div>
@@ -520,7 +536,7 @@ export default function HomePage() {
                     <div className="text-gray-500 text-sm">{testimonial.role}</div>
                   </div>
                   <div className="ml-auto bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1">
-                    <span className="text-emerald-400 font-bold text-sm">{testimonial.profit}</span>
+                    <span className="text-emerald-400 font-normal text-sm">{testimonial.profit}</span>
                   </div>
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed">&quot;{testimonial.quote}&quot;</p>
@@ -545,7 +561,7 @@ export default function HomePage() {
       >
         <div className="absolute inset-0 bg-[#030712]" />
         <div className="absolute top-1/2 left-0 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[200px] -translate-y-1/2" />
-        <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-orange-500/10 rounded-full blur-[150px] -translate-y-1/2" />
+        <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-orange-500/10 rounded-full blur-[60px] -translate-y-1/2" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
@@ -554,7 +570,7 @@ export default function HomePage() {
                 <BarChart2 className="h-4 w-4 text-cyan-400" />
                 <span className="text-cyan-400 text-sm font-medium">Live Dashboard</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-4 leading-tight">
                 Real-Time Charts &
                 <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
                   Professional Indicators
@@ -587,7 +603,7 @@ export default function HomePage() {
 
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all hover:scale-105 group"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-normal rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all hover:scale-105 group"
               >
                 Try Live Dashboard
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -619,6 +635,7 @@ export default function HomePage() {
                     src="/dashboard-chart.jpg"
                     alt="Trading Chart"
                     className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
                   />
 
                   {/* Overlay gradient */}
@@ -628,12 +645,12 @@ export default function HomePage() {
                   <div className="absolute bottom-4 left-4 right-4 flex gap-3">
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">BTC/USDT</div>
-                      <div className="text-lg font-bold text-emerald-400">$98,432.50</div>
+                      <div className="text-lg font-normal text-emerald-400">$98,432.50</div>
                       <div className="text-xs text-emerald-400">+2.34%</div>
                     </div>
                     <div className="flex-1 bg-black/60 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                       <div className="text-xs text-gray-400 mb-1">Signal</div>
-                      <div className="text-lg font-bold text-cyan-400">BUY</div>
+                      <div className="text-lg font-normal text-cyan-400">BUY</div>
                       <div className="text-xs text-gray-400">Strong</div>
                     </div>
                   </div>
@@ -653,7 +670,7 @@ export default function HomePage() {
         {/* Chart background */}
         <div className="absolute inset-0 opacity-10 overflow-hidden">
           <img
-            src="https://images.pexels.com/photos/6770609/pexels-photo-6770609.jpeg?auto=compress&cs=tinysrgb&w=1920"
+            loading="lazy" src="https://images.pexels.com/photos/6770609/pexels-photo-6770609.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt=""
             className="w-full h-full object-cover"
           />
@@ -662,7 +679,7 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`text-center mb-12 sm:mb-16 transition-all duration-1000 ${isVisible('how-it-works') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-normal text-white mb-4">
               Start Trading in
               <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent"> 3 Simple Steps</span>
             </h2>
@@ -705,11 +722,11 @@ export default function HomePage() {
                 )}
 
                 <div className="relative bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6 sm:p-8 text-center hover:border-cyan-500/30 transition-all duration-500 group-hover:-translate-y-2 hover:shadow-xl hover:shadow-cyan-500/5">
-                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r ${item.color} text-white text-lg font-bold mb-4 group-hover:scale-110 transition-transform duration-500`}>
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r ${item.color} text-white text-lg font-normal mb-4 group-hover:scale-110 transition-transform duration-500`}>
                     {item.step}
                   </div>
                   <div className="text-3xl mb-3 group-hover:scale-125 transition-transform duration-500">{item.icon}</div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{item.title}</h3>
+                  <h3 className="text-xl font-normal text-white mb-2">{item.title}</h3>
                   <p className="text-gray-400 text-sm">{item.desc}</p>
                 </div>
               </div>
@@ -727,7 +744,7 @@ export default function HomePage() {
         {/* Chart background */}
         <div className="absolute inset-0 opacity-15 overflow-hidden">
           <img
-            src="https://images.pexels.com/photos/6801874/pexels-photo-6801874.jpeg?auto=compress&cs=tinysrgb&w=1920"
+            loading="lazy" src="https://images.pexels.com/photos/6801874/pexels-photo-6801874.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt=""
             className="w-full h-full object-cover"
           />
@@ -735,11 +752,11 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#030712] via-[#030712]/80 to-[#030712]" />
         <div className="absolute inset-0">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[200px] animate-pulse-slow" />
-          <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-orange-500/10 rounded-full blur-[150px] animate-pulse-slow animation-delay-2000" />
+          <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-orange-500/10 rounded-full blur-[60px] animate-pulse-slow animation-delay-2000" />
         </div>
 
         <div className={`relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${isVisible('cta') ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal text-white mb-4 leading-tight">
             Ready to Become a
             <span className="block bg-gradient-to-r from-cyan-400 via-blue-500 to-orange-400 bg-clip-text text-transparent">
               Profitable Trader?
@@ -754,7 +771,7 @@ export default function HomePage() {
           <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 transition-all duration-1000 delay-400 ${isVisible('cta') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <Link
               href="/register"
-              className="group relative w-full sm:w-auto overflow-hidden px-10 py-4 rounded-xl font-semibold text-white transition-all hover:scale-105"
+              className="group relative w-full sm:w-auto overflow-hidden px-10 py-4 rounded-xl font-normal text-white transition-all hover:scale-105"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-500 bg-[length:200%_100%] animate-gradient" />
               <span className="relative flex items-center justify-center gap-2 text-lg">
@@ -764,7 +781,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/pricing"
-              className="flex items-center justify-center w-full sm:w-auto px-10 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 hover:scale-105 transition-all"
+              className="flex items-center justify-center w-full sm:w-auto px-10 py-4 bg-white/5 border border-white/10 text-white font-normal rounded-xl hover:bg-white/10 hover:scale-105 transition-all"
             >
               View Pricing Plans
             </Link>

@@ -12,10 +12,19 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(() => {
+          setScrolled(window.scrollY > 10);
+          ticking = false;
+        });
+      }
     };
-    window.addEventListener('scroll', handleScroll);
+    // Check initial state
+    setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -46,10 +55,10 @@ export default function Navbar() {
               />
             </div>
             <div className="flex flex-col">
-              <span className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <span className="text-base sm:text-lg font-normal text-white tracking-tight">
                 Market<span className="text-cyan-400">Sniper</span>
               </span>
-              <span className="text-[8px] sm:text-[9px] text-orange-400/80 font-medium tracking-[0.2em] uppercase -mt-0.5">
+              <span className="text-[8px] sm:text-[9px] text-orange-400/80 font-light tracking-[0.2em] uppercase -mt-0.5">
                 Indicator
               </span>
             </div>
@@ -86,7 +95,7 @@ export default function Navbar() {
                 )}
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/25"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-light transition-all hover:shadow-lg hover:shadow-cyan-500/25"
                 >
                   <Zap className="h-3.5 w-3.5" />
                   <span>Dashboard</span>
@@ -122,7 +131,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/register"
-                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/25"
+                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-light transition-all hover:shadow-lg hover:shadow-cyan-500/25"
                 >
                   Get Started
                 </Link>
@@ -169,7 +178,7 @@ export default function Navbar() {
                 <Link
                   href="/dashboard"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium rounded-lg text-sm"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-light rounded-lg text-sm"
                 >
                   <Zap className="h-4 w-4" />
                   <span>Dashboard</span>
@@ -197,7 +206,7 @@ export default function Navbar() {
                 <Link
                   href="/register"
                   onClick={() => setIsOpen(false)}
-                  className="block px-4 py-3 text-center bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium rounded-lg text-sm"
+                  className="block px-4 py-3 text-center bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-light rounded-lg text-sm"
                 >
                   Get Started Free
                 </Link>

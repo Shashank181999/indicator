@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import bcrypt from 'bcryptjs';
-import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
 import { authOptions } from '@/lib/auth';
+import { useMockDb, MockUser } from '@/lib/mockDb';
+
+// Dynamic imports for MongoDB (only when needed)
+let dbConnect, User;
+const loadMongoDb = async () => {
+  if (!dbConnect) {
+    const mongoModule = await import('@/lib/mongodb');
+    const userModule = await import('@/models/User');
+    dbConnect = mongoModule.default;
+    User = userModule.default;
+  }
+};
 
 // GET - Fetch all users (Admin only)
 export async function GET(request) {
@@ -17,6 +27,14 @@ export async function GET(request) {
       );
     }
 
+    // Use mock database if MongoDB is not configured
+    if (useMockDb()) {
+      const result = await MockUser.find({});
+      const users = await result.select('-password').sort({ createdAt: -1 });
+      return NextResponse.json({ users });
+    }
+
+    await loadMongoDb();
     await dbConnect();
 
     const users = await User.find({})
@@ -26,6 +44,12 @@ export async function GET(request) {
     return NextResponse.json({ users });
   } catch (error) {
     console.error('Error fetching users:', error);
+    // Fallback to mock data on error
+    if (useMockDb()) {
+      const result = await MockUser.find({});
+      const users = await result.select('-password').sort({ createdAt: -1 });
+      return NextResponse.json({ users });
+    }
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }
@@ -52,6 +76,38 @@ export async function POST(request) {
       );
     }
 
+    // Use mock database if MongoDB is not configured
+    if (useMockDb()) {
+      const existingUser = await MockUser.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'User with this email already exists' },
+          { status: 400 }
+        );
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const user = await MockUser.create({
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        role: 'user',
+        provider: 'credentials',
+        subscriptionStatus: 'none',
+      });
+
+      return NextResponse.json({
+        message: 'User created successfully',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    }
+
+    await loadMongoDb();
     await dbConnect();
 
     // Check if user already exists

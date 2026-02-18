@@ -86,7 +86,7 @@ export async function POST(request) {
 
     // Mock mode
     if (USE_MOCK) {
-      const prices = { weekly: 499, monthly: 1499, yearly: 9999 };
+      const prices = { weekly: 6, monthly: 18, yearly: 99 };
       const endDate = new Date();
       if (plan === 'weekly') endDate.setDate(endDate.getDate() + 7);
       else if (plan === 'monthly') endDate.setMonth(endDate.getMonth() + 1);

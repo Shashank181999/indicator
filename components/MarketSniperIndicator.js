@@ -178,6 +178,14 @@ export default function MarketSniperIndicator() {
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileTimeframes, setShowMobileTimeframes] = useState(false);
 
+  // Draggable divider state - ratio of main chart height to total (chart + oscillator)
+  const [chartOscRatio, setChartOscRatio] = useState(0.57); // Default: 57% chart, 43% oscillator
+  const dividerDragRef = useRef({
+    isDragging: false,
+    startY: 0,
+    startRatio: 0.57,
+  });
+
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
@@ -220,20 +228,37 @@ export default function MarketSniperIndicator() {
     const container = fullscreenContainerRef.current;
     if (!container) return;
 
-    // iOS doesn't support Fullscreen API - use CSS fallback
+    // iOS doesn't support Fullscreen API - use CSS fullscreen
     if (isIOS()) {
-      setFullscreen(prev => {
-        const newState = !prev;
-        // Only lock scroll, don't change position
-        if (newState) {
-          document.body.style.overflow = 'hidden';
-          // Scroll to top when entering fullscreen
-          window.scrollTo(0, 0);
-        } else {
-          document.body.style.overflow = '';
+      const entering = !fullscreen;
+
+      if (entering) {
+        // Hide everything else and fix body
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        document.querySelectorAll('nav, footer').forEach(el => {
+          el.style.setProperty('display', 'none', 'important');
+        });
+        window.scrollTo(0, 0);
+
+        // Store the actual viewport height for iOS
+        if (container) {
+          container.style.setProperty('--ios-vh', `${window.innerHeight}px`);
         }
-        return newState;
-      });
+      } else {
+        // Restore everything
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.querySelectorAll('nav, footer').forEach(el => {
+          el.style.removeProperty('display');
+        });
+      }
+
+      setFullscreen(entering);
       return;
     }
 
@@ -318,6 +343,29 @@ export default function MarketSniperIndicator() {
     if (day === 0 || day === 6) return false;
     return time >= 9 * 60 + 15 && time <= 15 * 60 + 30;
   }, []);
+
+  // Check if US market is open (for commodities/forex)
+  const checkUSMarketOpen = useCallback(() => {
+    const now = new Date();
+    const estOffset = -5 * 60 * 60 * 1000;
+    const est = new Date(now.getTime() + now.getTimezoneOffset() * 60 * 1000 + estOffset);
+    const day = est.getDay();
+    const hours = est.getHours();
+    const minutes = est.getMinutes();
+    const time = hours * 60 + minutes;
+
+    if (day === 0 || day === 6) return false;
+    return time >= 9 * 60 + 30 && time <= 16 * 60;
+  }, []);
+
+  // Check if a specific category market is open
+  const isMarketOpenForCategory = useCallback((category) => {
+    if (category === 'crypto') return true; // Crypto is 24/7
+    if (category === 'indices' || category === 'stocks') return checkIndianMarketOpen();
+    if (category === 'commodities') return checkUSMarketOpen();
+    if (category === 'forex') return true; // Forex is mostly 24/5
+    return true;
+  }, [checkIndianMarketOpen, checkUSMarketOpen]);
 
   // Get current asset info
   const getCurrentAsset = useCallback(() => {
@@ -1074,6 +1122,87 @@ export default function MarketSniperIndicator() {
     };
   }, [handleZoom, handlePan, startInertia, stopInertia]);
 
+  // Divider drag handlers for resizing chart/oscillator sections
+  const handleDividerStart = useCallback((clientY) => {
+    dividerDragRef.current = {
+      isDragging: true,
+      startY: clientY,
+      startRatio: chartOscRatio,
+    };
+  }, [chartOscRatio]);
+
+  const handleDividerMove = useCallback((clientY) => {
+    if (!dividerDragRef.current.isDragging) return;
+
+    const canvas = chartRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const deltaY = clientY - dividerDragRef.current.startY;
+
+    // Convert pixel movement to ratio change
+    // Moving down = larger chart (higher ratio), moving up = smaller chart (lower ratio)
+    const ratioChange = deltaY / rect.height;
+    let newRatio = dividerDragRef.current.startRatio + ratioChange;
+
+    // Clamp ratio between 0.25 and 0.85 (oscillator gets at least 15%, chart gets at least 25%)
+    newRatio = Math.max(0.25, Math.min(0.85, newRatio));
+
+    setChartOscRatio(newRatio);
+  }, []);
+
+  const handleDividerEnd = useCallback(() => {
+    dividerDragRef.current.isDragging = false;
+  }, []);
+
+  // Mouse events for divider (desktop)
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (dividerDragRef.current.isDragging) {
+        e.preventDefault();
+        handleDividerMove(e.clientY);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (dividerDragRef.current.isDragging) {
+        handleDividerEnd();
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleDividerMove, handleDividerEnd]);
+
+  // Touch events for divider (mobile)
+  useEffect(() => {
+    const handleTouchMove = (e) => {
+      if (dividerDragRef.current.isDragging && e.touches.length === 1) {
+        e.preventDefault();
+        handleDividerMove(e.touches[0].clientY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (dividerDragRef.current.isDragging) {
+        handleDividerEnd();
+      }
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleDividerMove, handleDividerEnd]);
+
   // ResizeObserver for responsive handling
   useEffect(() => {
     const container = containerRef.current;
@@ -1108,7 +1237,47 @@ export default function MarketSniperIndicator() {
     if (chartRef.current && marketData) {
       drawChart();
     }
-  }, [marketData, livePrice, chartType, indicators, fullscreen, candleCountdown]);
+  }, [marketData, livePrice, chartType, indicators, candleCountdown, chartOscRatio]);
+
+  // Force redraw on fullscreen change with delay for iOS
+  useEffect(() => {
+    if (!marketData) return;
+
+    const redraw = () => {
+      const canvas = chartRef.current;
+      const container = containerRef.current;
+      if (!canvas) return;
+
+      let width, height;
+
+      if (fullscreen) {
+        // Use window dimensions minus header height (44px mobile + 40px margin = 84px, 38px desktop + 40px margin = 78px)
+        width = window.innerWidth;
+        const headerHeight = isMobile ? 84 : 78;
+        height = window.innerHeight - headerHeight;
+      } else {
+        width = container?.offsetWidth || canvas.parentElement?.offsetWidth || canvas.offsetWidth;
+        height = canvas.offsetHeight;
+      }
+
+      if (width === 0 || height === 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+
+      drawChart();
+    };
+
+    // Multiple redraws for iOS - more aggressive timing
+    const timers = [0, 50, 150, 300, 500, 800, 1200].map(delay =>
+      setTimeout(redraw, delay)
+    );
+
+    return () => timers.forEach(clearTimeout);
+  }, [fullscreen]);
 
   // Cleanup animation frames on unmount
   useEffect(() => {
@@ -1162,13 +1331,19 @@ export default function MarketSniperIndicator() {
 
     let mainChartHeight, volumeHeight, sniperOscHeight;
     if (indicators.sniperOsc && indicators.volume) {
-      mainChartHeight = availableHeight * 0.52;
+      // Use dynamic ratio controlled by divider
+      const chartPortion = chartOscRatio;
+      const oscPortion = 1 - chartOscRatio;
+      // Volume takes a small fixed portion from chart area
       volumeHeight = availableHeight * 0.08;
-      sniperOscHeight = availableHeight * 0.40;
+      const remainingHeight = availableHeight - volumeHeight;
+      mainChartHeight = remainingHeight * chartPortion;
+      sniperOscHeight = remainingHeight * oscPortion;
     } else if (indicators.sniperOsc) {
-      mainChartHeight = availableHeight * 0.55;
+      // Use dynamic ratio controlled by divider
+      mainChartHeight = availableHeight * chartOscRatio;
       volumeHeight = 0;
-      sniperOscHeight = availableHeight * 0.45;
+      sniperOscHeight = availableHeight * (1 - chartOscRatio);
     } else if (indicators.volume) {
       mainChartHeight = availableHeight * 0.88;
       volumeHeight = availableHeight * 0.12;
@@ -2121,10 +2296,28 @@ export default function MarketSniperIndicator() {
     : allAssets;
 
   return (
-    <div ref={fullscreenContainerRef} className={`bg-[#131722] ${fullscreen ? 'fullscreen-ios flex flex-col' : 'rounded-lg border border-[#363a45] overflow-hidden'}`}>
-
-      {/* Mobile-Optimized Header */}
-      <div className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]">
+    <div
+      ref={fullscreenContainerRef}
+      className={fullscreen ? '' : 'bg-[#131722] rounded-lg border border-[#363a45]'}
+      style={fullscreen ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: 'var(--ios-vh, 100vh)',
+        zIndex: 999999,
+        background: '#131722',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      } : {}}
+    >
+      
+      {/* Header - Always show */}
+      <div
+        className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]"
+        style={fullscreen ? { marginTop: '20px' } : {}}
+      >
         {/* Left Section: Symbol + Timeframe */}
         <div className="flex items-center gap-1">
           {/* Symbol Selector */}
@@ -2133,30 +2326,35 @@ export default function MarketSniperIndicator() {
               onClick={() => setShowAssetSearch(!showAssetSearch)}
               className="flex items-center gap-1 h-[44px] sm:h-[38px] px-2 sm:px-2 hover:bg-[#2a2e39] active:bg-[#363a45] transition-colors"
             >
-              <span className="text-[#d1d4dc] font-semibold text-[14px] sm:text-[13px]">{currentAsset?.short || 'BTC'}</span>
+              <span className="text-[#d1d4dc] font-normal text-[14px] sm:text-[13px]">{currentAsset?.short || 'BTC'}</span>
               <ChevronDown className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-[#787b86]" />
             </button>
 
-            {/* Asset Dropdown - Full screen on mobile */}
+            {/* Asset Dropdown - Simple list on mobile, with search on desktop */}
             {showAssetSearch && (
-              <div className={`absolute top-full left-0 mt-0.5 bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl z-50 ${
-                isMobile ? 'fixed inset-x-2 top-[50px] w-auto' : 'w-[280px]'
+              <div className={`bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl ${
+                isMobile
+                  ? 'fixed left-3 right-3 top-[100px] z-[9999999]'
+                  : `absolute top-full left-0 mt-0.5 w-[280px] z-[9999]`
               }`}>
-                <div className="p-2 border-b border-[#363a45]">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#787b86]" />
-                    <input
-                      type="text"
-                      placeholder="Search assets..."
-                      value={assetSearch}
-                      onChange={(e) => setAssetSearch(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 sm:py-1.5 bg-[#131722] border border-[#363a45] rounded-lg text-[#d1d4dc] text-sm sm:text-xs placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]"
-                      autoFocus
-                    />
+                {/* Search box - only on desktop */}
+                {!isMobile && (
+                  <div className="p-2 border-b border-[#363a45]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#787b86]" />
+                      <input
+                        type="text"
+                        placeholder="Search assets..."
+                        value={assetSearch}
+                        onChange={(e) => setAssetSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 bg-[#131722] border border-[#363a45] rounded-lg text-[#d1d4dc] text-xs placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]"
+                        autoFocus
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="max-h-[300px] sm:max-h-[240px] overflow-y-auto">
-                  {filteredAssets.map((asset) => (
+                )}
+                <div className={`overflow-y-auto ${isMobile ? 'max-h-[50vh]' : 'max-h-[240px]'}`}>
+                  {(isMobile ? allAssets : filteredAssets).map((asset) => (
                     <button
                       key={asset.symbol}
                       onClick={() => {
@@ -2172,7 +2370,15 @@ export default function MarketSniperIndicator() {
                       <div className="flex items-center gap-3 sm:gap-2">
                         <span className="text-lg sm:text-sm">{ASSET_CATEGORIES[asset.category].icon}</span>
                         <div>
-                          <div className="text-[#d1d4dc] text-sm sm:text-xs font-medium">{asset.short}USDT</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#d1d4dc] text-sm sm:text-xs font-medium">{asset.short}{asset.category === 'crypto' ? 'USDT' : ''}</span>
+                            {!isMarketOpenForCategory(asset.category) && (
+                              <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">CLOSED</span>
+                            )}
+                            {isMarketOpenForCategory(asset.category) && asset.category !== 'crypto' && (
+                              <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">LIVE</span>
+                            )}
+                          </div>
                           <div className="text-[#787b86] text-xs sm:text-[10px]">{asset.name}</div>
                         </div>
                       </div>
@@ -2190,13 +2396,13 @@ export default function MarketSniperIndicator() {
               onClick={() => setShowMobileTimeframes(!showMobileTimeframes)}
               className="flex items-center gap-1 h-[44px] px-2 hover:bg-[#2a2e39] active:bg-[#363a45]"
             >
-              <span className="text-[#2962ff] font-semibold text-[14px]">{timeframe.toUpperCase()}</span>
+              <span className="text-[#2962ff] font-normal text-[14px]">{timeframe.toUpperCase()}</span>
               <ChevronDown className="h-3.5 w-3.5 text-[#787b86]" />
             </button>
 
             {/* Mobile Timeframe Dropdown */}
             {showMobileTimeframes && (
-              <div className="absolute top-full left-0 mt-0.5 w-[120px] bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl z-50">
+              <div className={`fixed left-3 top-[60px] w-[140px] bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl ${fullscreen ? 'z-[9999999]' : 'z-[9999]'}`}>
                 {TIMEFRAMES.map((tf) => (
                   <button
                     key={tf.value}
@@ -2273,7 +2479,7 @@ export default function MarketSniperIndicator() {
         <div className="flex items-center gap-0.5 sm:gap-1">
           {/* Price - More prominent on mobile */}
           <div className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2">
-            <span className={`font-mono text-[15px] sm:text-[13px] font-bold ${priceDirection === 'up' ? 'text-[#26a69a]' : priceDirection === 'down' ? 'text-[#ef5350]' : 'text-[#d1d4dc]'}`}>
+            <span className={`font-mono text-[15px] sm:text-[13px] font-normal ${priceDirection === 'up' ? 'text-[#26a69a]' : priceDirection === 'down' ? 'text-[#ef5350]' : 'text-[#d1d4dc]'}`}>
               {formatPrice(shownPrice)}
             </span>
             <span className={`text-[11px] sm:text-[11px] font-medium ${priceChange >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
@@ -2322,7 +2528,7 @@ export default function MarketSniperIndicator() {
             isMobile
               ? 'fixed inset-x-2 top-[90px] w-auto max-h-[70vh]'
               : 'absolute top-[42px] left-2 sm:left-auto w-[260px]'
-          } bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl z-50 overflow-hidden`}
+          } bg-[#1e222d] border border-[#363a45] rounded-lg shadow-2xl ${fullscreen ? 'z-[9999999]' : 'z-50'} overflow-hidden`}
           style={{
             animation: 'fadeInScale 0.15s ease-out',
           }}
@@ -2448,8 +2654,8 @@ export default function MarketSniperIndicator() {
         </div>
       )}
 
-      {/* Mobile Quick Actions Bar */}
-      {isMobile && (
+      {/* Mobile Quick Actions Bar - Hidden in mobile fullscreen */}
+      {isMobile && !fullscreen && (
         <div className="flex items-center justify-between h-[40px] px-2 bg-[#1e222d] border-b border-[#363a45]">
           {/* Chart Type Toggle */}
           <div className="flex items-center gap-1 bg-[#131722] rounded-lg p-0.5">
@@ -2484,22 +2690,30 @@ export default function MarketSniperIndicator() {
           {/* Signal Badge */}
           <div className={`flex items-center gap-1 px-2 py-1.5 rounded-lg ${signalInfo.bg}`}>
             <SignalIcon className={`h-3.5 w-3.5 ${signalInfo.color}`} />
-            <span className={`text-xs font-semibold ${signalInfo.color}`}>{signalInfo.text}</span>
+            <span className={`text-xs font-normal ${signalInfo.color}`}>{signalInfo.text}</span>
           </div>
         </div>
       )}
 
       {/* Chart Area */}
-      <div ref={containerRef} className={`relative ${fullscreen ? 'flex-1 flex flex-col' : ''}`}>
+      <div
+        ref={containerRef}
+        className="relative"
+        style={fullscreen ? {
+          flex: 1,
+          width: '100%',
+          minHeight: 0,
+        } : {}}
+      >
         {loading && !marketData ? (
-          <div className={`bg-[#131722] flex items-center justify-center ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}>
+          <div className="bg-[#131722] flex items-center justify-center h-[380px] sm:h-[480px] md:h-[520px]" style={fullscreen ? { height: '100%' } : {}}>
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-3 border-[#2962ff] border-t-transparent rounded-full animate-spin" />
               <span className="text-[#787b86] text-sm">Loading chart...</span>
             </div>
           </div>
         ) : error && !marketData ? (
-          <div className={`bg-[#131722] flex items-center justify-center ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}>
+          <div className="bg-[#131722] flex items-center justify-center h-[380px] sm:h-[480px] md:h-[520px]" style={fullscreen ? { height: '100%' } : {}}>
             <div className="text-center px-4">
               <AlertCircle className="h-10 w-10 text-[#ef5350] mx-auto mb-3" />
               <p className="text-[#787b86] text-sm mb-3">{error}</p>
@@ -2512,22 +2726,56 @@ export default function MarketSniperIndicator() {
             </div>
           </div>
         ) : (
-          <div className={`relative ${fullscreen ? 'flex-1 flex flex-col' : ''}`}>
+          <div className="relative" style={fullscreen ? { flex: 1, width: '100%', display: 'flex' } : {}}>
             <canvas
               ref={chartRef}
-              className={`w-full chart-smooth ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}
-              style={{
+              className={fullscreen ? '' : 'w-full h-[380px] sm:h-[480px] md:h-[520px]'}
+              style={fullscreen ? {
+                width: '100%',
+                flex: 1,
+                background: '#131722',
+                touchAction: 'none',
+                display: 'block',
+              } : {
                 background: '#131722',
                 cursor: isMobile ? 'default' : 'crosshair',
                 touchAction: 'none',
-                imageRendering: 'crisp-edges',
-                WebkitUserSelect: 'none',
-                userSelect: 'none',
-                willChange: 'transform',
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden',
+                display: 'block',
               }}
             />
+
+            {/* Draggable Divider between Chart and Oscillator */}
+            {indicators.sniperOsc && (
+              <div
+                className="absolute left-0 right-0 h-6 flex items-center justify-center cursor-ns-resize z-20 group"
+                style={{
+                  // Position based on chartOscRatio - account for header area (~8%) and time axis
+                  // Approximate: top offset = ratio of chart area relative to total canvas height
+                  top: `calc(${(chartOscRatio * (indicators.volume ? 0.92 : 1) + (indicators.volume ? 0.08 : 0)) * 90 + 5}%)`,
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleDividerStart(e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1) {
+                    e.preventDefault();
+                    handleDividerStart(e.touches[0].clientY);
+                  }
+                }}
+              >
+                {/* Divider line */}
+                <div className="absolute inset-x-0 top-1/2 h-[2px] bg-[#2a2e39] group-hover:bg-[#2962ff] group-active:bg-[#2962ff] transition-colors" />
+
+                {/* Drag handle */}
+                <div className="relative bg-[#1e222d] border border-[#363a45] group-hover:border-[#2962ff] group-active:border-[#2962ff] rounded-full px-3 py-1 flex items-center gap-1 transition-colors shadow-lg">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="w-4 h-[2px] bg-[#787b86] rounded group-hover:bg-[#2962ff] group-active:bg-[#2962ff] transition-colors" />
+                    <div className="w-4 h-[2px] bg-[#787b86] rounded group-hover:bg-[#2962ff] group-active:bg-[#2962ff] transition-colors" />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Zoom Controls - Floating buttons */}
             <div className="absolute bottom-3 right-2 flex flex-col gap-1.5 z-10">
@@ -2660,7 +2908,7 @@ export default function MarketSniperIndicator() {
           {/* Signal - Hidden on mobile (shown in mobile quick bar) */}
           <div className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded ${signalInfo.bg}`}>
             <SignalIcon className={`h-3.5 w-3.5 ${signalInfo.color}`} />
-            <span className={`font-semibold ${signalInfo.color}`}>{signalInfo.text}</span>
+            <span className={`font-normal ${signalInfo.color}`}>{signalInfo.text}</span>
           </div>
 
           {/* Mobile: Compact indicators */}
@@ -2772,7 +3020,7 @@ export default function MarketSniperIndicator() {
           )}
           <div className="flex items-center gap-1">
             <Target className="h-3 w-3 text-[#2962ff]" />
-            <span className="text-[#2962ff] font-semibold">Market Sniper</span>
+            <span className="text-[#2962ff] font-normal">Market Sniper</span>
           </div>
         </div>
       </div>
@@ -2789,7 +3037,7 @@ export default function MarketSniperIndicator() {
       {/* Click Outside Handler */}
       {(showAssetSearch || showIndicatorMenu || showMobileTimeframes) && (
         <div
-          className="fixed inset-0 z-40"
+          className={`fixed inset-0 bg-black/50 ${fullscreen ? 'z-[9999998]' : 'z-[9998]'}`}
           onClick={() => {
             setShowAssetSearch(false);
             setShowIndicatorMenu(false);
@@ -2813,7 +3061,7 @@ export default function MarketSniperIndicator() {
                 <div className="w-8 h-8 bg-gradient-to-br from-[#2962ff] to-[#1e53e4] rounded-lg flex items-center justify-center">
                   <Target className="h-4 w-4 text-white" />
                 </div>
-                <h3 className="text-white font-semibold">Sniper Indicator Guide</h3>
+                <h3 className="text-white font-normal">Sniper Indicator Guide</h3>
               </div>
               <button
                 onClick={() => setShowGuide(false)}
@@ -2848,11 +3096,11 @@ export default function MarketSniperIndicator() {
                 <h4 className="text-white font-medium mb-3">Key Zones</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-3 rounded-lg bg-[#ef5350]/10 border border-[#ef5350]/20">
-                    <span className="text-[#ef5350] font-semibold text-sm">80+ Overbought</span>
+                    <span className="text-[#ef5350] font-normal text-sm">80+ Overbought</span>
                     <p className="text-[#787b86] text-xs mt-1">Potential sell zone</p>
                   </div>
                   <div className="p-3 rounded-lg bg-[#26a69a]/10 border border-[#26a69a]/20">
-                    <span className="text-[#26a69a] font-semibold text-sm">20- Oversold</span>
+                    <span className="text-[#26a69a] font-normal text-sm">20- Oversold</span>
                     <p className="text-[#787b86] text-xs mt-1">Potential buy zone</p>
                   </div>
                 </div>
@@ -2868,7 +3116,7 @@ export default function MarketSniperIndicator() {
                     'Use White EMA 200 to confirm overall trend',
                   ].map((tip, i) => (
                     <div key={i} className="flex items-start gap-2 text-[#787b86]">
-                      <span className="text-[#2962ff] font-semibold">{i + 1}.</span>
+                      <span className="text-[#2962ff] font-normal">{i + 1}.</span>
                       <span>{tip}</span>
                     </div>
                   ))}

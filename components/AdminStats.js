@@ -20,14 +20,14 @@ export default function AdminStats({ stats }) {
     },
     {
       title: 'Total Revenue',
-      value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`,
+      value: `$${(stats?.totalRevenue || 0).toLocaleString()}`,
       icon: DollarSign,
       change: '+23%',
       changeType: 'positive',
     },
     {
       title: 'Monthly Revenue',
-      value: `₹${(stats?.monthlyRevenue || 0).toLocaleString()}`,
+      value: `$${(stats?.monthlyRevenue || 0).toLocaleString()}`,
       icon: TrendingUp,
       change: '+15%',
       changeType: 'positive',

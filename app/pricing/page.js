@@ -31,7 +31,7 @@ export default function PricingPage() {
   const plans = [
     {
       title: 'Weekly',
-      price: 499,
+      price: 6,
       period: 'week',
       description: 'Perfect for trying out',
       isPopular: false,
@@ -48,7 +48,7 @@ export default function PricingPage() {
     },
     {
       title: 'Monthly',
-      price: 1499,
+      price: 18,
       period: 'month',
       description: 'Most popular choice',
       isPopular: true,
@@ -65,9 +65,9 @@ export default function PricingPage() {
     },
     {
       title: 'Yearly',
-      price: 9999,
+      price: 99,
       period: 'year',
-      description: 'Best value - Save 45%',
+      description: 'Best value - Save 55%',
       isPopular: false,
       color: 'from-orange-500 to-yellow-500',
       features: [
@@ -93,7 +93,7 @@ export default function PricingPage() {
     },
     {
       q: 'What payment methods do you accept?',
-      a: 'We accept all major credit/debit cards, UPI, net banking, and popular wallets like PayTM and PhonePe.',
+      a: 'We accept all major credit/debit cards, PayPal, Apple Pay, Google Pay, and bank transfers.',
     },
     {
       q: 'Can I cancel my subscription?',
@@ -120,8 +120,8 @@ export default function PricingPage() {
         </div>
 
         {/* Glow effects */}
-        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-orange-500/10 rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[60px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-orange-500/10 rounded-full blur-[50px]" />
 
         <div className={`relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${isVisible('pricing-hero') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-4 py-1.5 mb-6">
@@ -129,7 +129,7 @@ export default function PricingPage() {
             <span className="text-cyan-400 text-sm font-medium">Simple Pricing</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-normal text-white mb-6 leading-tight">
             Choose Your
             <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
               Trading Plan
@@ -172,15 +172,15 @@ export default function PricingPage() {
                 <div className={`p-6 ${plan.isPopular ? 'pt-14' : ''}`}>
                   {/* Plan header */}
                   <div className="text-center mb-6">
-                    <h3 className="text-xl font-semibold text-white mb-1">{plan.title}</h3>
+                    <h3 className="text-xl font-normal text-white mb-1">{plan.title}</h3>
                     <p className="text-gray-500 text-sm">{plan.description}</p>
                   </div>
 
                   {/* Price */}
                   <div className="text-center mb-6">
                     <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-gray-400 text-lg">₹</span>
-                      <span className={`text-5xl font-bold bg-gradient-to-r ${plan.color} bg-clip-text text-transparent`}>
+                      <span className="text-gray-400 text-lg">$</span>
+                      <span className={`text-5xl font-normal bg-gradient-to-r ${plan.color} bg-clip-text text-transparent`}>
                         {plan.price.toLocaleString()}
                       </span>
                     </div>
@@ -190,7 +190,7 @@ export default function PricingPage() {
                   {/* CTA Button */}
                   <Link
                     href="/register"
-                    className={`block w-full py-3 rounded-xl font-semibold text-center transition-all mb-6 ${
+                    className={`block w-full py-3 rounded-xl font-normal text-center transition-all mb-6 ${
                       plan.isPopular
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:shadow-cyan-500/25'
                         : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
@@ -259,7 +259,7 @@ export default function PricingPage() {
               <HelpCircle className="h-4 w-4 text-orange-400" />
               <span className="text-orange-400 text-sm font-medium">FAQ</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white">
+            <h2 className="text-3xl sm:text-4xl font-normal text-white">
               Frequently Asked <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Questions</span>
             </h2>
           </div>
@@ -306,7 +306,7 @@ export default function PricingPage() {
             <div className="inline-flex p-4 bg-gradient-to-r from-cyan-500/20 to-orange-500/20 rounded-2xl mb-6">
               <Shield className="h-10 w-10 text-cyan-400" />
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+            <h3 className="text-2xl sm:text-3xl font-normal text-white mb-4">
               7-Day Money-Back Guarantee
             </h3>
             <p className="text-gray-400 max-w-2xl mx-auto mb-8">
@@ -316,7 +316,7 @@ export default function PricingPage() {
             </p>
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-normal rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
             >
               Start Risk-Free Trial
               <ArrowRight className="h-4 w-4" />

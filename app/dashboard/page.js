@@ -3,8 +3,24 @@
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
-import MarketSniperIndicator from '@/components/MarketSniperIndicator';
+import dynamic from 'next/dynamic';
 import PricingCard from '@/components/PricingCard';
+
+// Lazy load the heavy chart component - only loads when needed
+const MarketSniperIndicator = dynamic(
+  () => import('@/components/MarketSniperIndicator'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[500px] flex items-center justify-center bg-[#131722] rounded-lg">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+          <span className="text-gray-500 text-sm">Loading chart...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 import {
   User,
   CreditCard,
@@ -89,14 +105,14 @@ function DashboardContent() {
   const plans = [
     {
       title: 'Weekly',
-      price: 499,
+      price: 6,
       period: 'week',
       plan: 'weekly',
       features: ['Market Sniper Indicator', 'All Markets Access', 'Real-time Updates'],
     },
     {
       title: 'Monthly',
-      price: 1499,
+      price: 18,
       period: 'month',
       plan: 'monthly',
       isPopular: true,
@@ -104,10 +120,10 @@ function DashboardContent() {
     },
     {
       title: 'Yearly',
-      price: 9999,
+      price: 99,
       period: 'year',
       plan: 'yearly',
-      features: ['Market Sniper Indicator', '1-on-1 Support', 'Save 45%'],
+      features: ['Market Sniper Indicator', '1-on-1 Support', 'Save 55%'],
     },
   ];
 
@@ -129,10 +145,10 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-[#030712]">
-      {/* Subtle background effects */}
+      {/* Subtle background effects - optimized for performance */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-1/4 w-[300px] h-[300px] bg-cyan-500/5 rounded-full blur-[60px]" />
+        <div className="absolute bottom-0 right-1/4 w-[250px] h-[250px] bg-orange-500/5 rounded-full blur-[50px]" />
       </div>
 
       {/* Main content */}
@@ -141,7 +157,7 @@ function DashboardContent() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
+              <h1 className="text-2xl sm:text-3xl font-normal text-white">Dashboard</h1>
               {isSubscribed && (
                 <div className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 text-cyan-400 px-3 py-1 rounded-full text-xs font-medium">
                   <Crown className="h-3.5 w-3.5" />
@@ -155,7 +171,7 @@ function DashboardContent() {
             {!isSubscribed && (
               <button
                 onClick={() => setShowPayment(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:shadow-lg hover:shadow-cyan-500/25"
+                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-normal transition-all hover:shadow-lg hover:shadow-cyan-500/25"
               >
                 <Zap className="h-4 w-4" />
                 <span>Upgrade to Pro</span>
@@ -185,7 +201,7 @@ function DashboardContent() {
               </div>
               <div>
                 <p className="text-gray-500 text-xs uppercase tracking-wider mb-0.5">Plan</p>
-                <p className={`text-sm font-semibold ${isSubscribed ? 'bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent' : 'text-gray-500'}`}>
+                <p className={`text-sm font-normal ${isSubscribed ? 'bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent' : 'text-gray-500'}`}>
                   {isSubscribed ? `${subscription?.plan?.toUpperCase() || 'PRO'}` : 'Free Plan'}
                 </p>
               </div>
@@ -241,13 +257,13 @@ function DashboardContent() {
                 <div className="w-20 h-20 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/5">
                   <Lock className="h-10 w-10 text-cyan-400" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Market Sniper Locked</h3>
+                <h3 className="text-2xl font-normal text-white mb-3">Market Sniper Locked</h3>
                 <p className="text-gray-400 text-sm mb-6 leading-relaxed">
                   Get real-time trading signals for Crypto, Nifty, Gold & more with our advanced Market Sniper indicator
                 </p>
                 <button
                   onClick={() => setShowPayment(true)}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-8 py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-cyan-500/25 text-sm"
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-8 py-3.5 rounded-xl font-normal transition-all hover:shadow-lg hover:shadow-cyan-500/25 text-sm"
                 >
                   Subscribe to Unlock
                 </button>
@@ -265,7 +281,7 @@ function DashboardContent() {
             <div className="bg-[#0a1628] border border-white/10 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-black/50">
               <div className="flex items-center justify-between p-6 border-b border-white/5">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Choose Your Plan</h2>
+                  <h2 className="text-xl font-normal text-white">Choose Your Plan</h2>
                   <p className="text-gray-500 text-sm mt-0.5">Select a plan to unlock all features</p>
                 </div>
                 <button
@@ -286,18 +302,18 @@ function DashboardContent() {
                       <div className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5">
                         <CreditCard className="h-8 w-8 text-cyan-400" />
                       </div>
-                      <h3 className="text-lg font-semibold text-white">Complete Payment</h3>
+                      <h3 className="text-lg font-normal text-white">Complete Payment</h3>
                     </div>
 
                     <div className="bg-[#030712]/50 rounded-2xl p-6 mb-6 border border-white/5">
                       <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
                         <span className="text-gray-500 text-sm">Plan</span>
-                        <span className="text-white font-semibold capitalize">{selectedPlan}</span>
+                        <span className="text-white font-normal capitalize">{selectedPlan}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 text-sm">Amount</span>
-                        <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                          ₹{plans.find(p => p.plan === selectedPlan)?.price.toLocaleString() || 0}
+                        <span className="text-2xl font-normal bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                          ${plans.find(p => p.plan === selectedPlan)?.price || 0}
                         </span>
                       </div>
                     </div>
@@ -309,7 +325,7 @@ function DashboardContent() {
                     <button
                       onClick={() => handlePayment(selectedPlan)}
                       disabled={paymentLoading}
-                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-4 rounded-xl font-semibold transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-cyan-500/25"
+                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-4 rounded-xl font-normal transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-cyan-500/25"
                     >
                       {paymentLoading ? (
                         <span className="flex items-center justify-center gap-2">
