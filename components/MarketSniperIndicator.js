@@ -203,11 +203,8 @@ export default function MarketSniperIndicator() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-      // Cleanup iOS body styles on unmount
+      // Cleanup body styles on unmount
       document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
     };
   }, []);
 
@@ -215,7 +212,7 @@ export default function MarketSniperIndicator() {
   const isIOS = useCallback(() => {
     if (typeof window === 'undefined') return false;
     return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+           (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
   }, []);
 
   // Toggle fullscreen function
@@ -227,17 +224,13 @@ export default function MarketSniperIndicator() {
     if (isIOS()) {
       setFullscreen(prev => {
         const newState = !prev;
-        // Lock body scroll when entering fullscreen on iOS
+        // Only lock scroll, don't change position
         if (newState) {
           document.body.style.overflow = 'hidden';
-          document.body.style.position = 'fixed';
-          document.body.style.width = '100%';
-          document.body.style.height = '100%';
+          // Scroll to top when entering fullscreen
+          window.scrollTo(0, 0);
         } else {
           document.body.style.overflow = '';
-          document.body.style.position = '';
-          document.body.style.width = '';
-          document.body.style.height = '';
         }
         return newState;
       });
@@ -2128,7 +2121,7 @@ export default function MarketSniperIndicator() {
     : allAssets;
 
   return (
-    <div ref={fullscreenContainerRef} className={`bg-[#131722] overflow-hidden ${fullscreen ? 'fixed inset-0 z-50' : 'rounded-lg border border-[#363a45]'}`}>
+    <div ref={fullscreenContainerRef} className={`bg-[#131722] ${fullscreen ? 'fullscreen-ios flex flex-col' : 'rounded-lg border border-[#363a45] overflow-hidden'}`}>
 
       {/* Mobile-Optimized Header */}
       <div className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]">
@@ -2497,16 +2490,16 @@ export default function MarketSniperIndicator() {
       )}
 
       {/* Chart Area */}
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className={`relative ${fullscreen ? 'flex-1 flex flex-col' : ''}`}>
         {loading && !marketData ? (
-          <div className={`bg-[#131722] ${fullscreen ? 'h-[calc(100vh-140px)]' : 'h-[380px] sm:h-[480px] md:h-[520px]'} flex items-center justify-center`}>
+          <div className={`bg-[#131722] flex items-center justify-center ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}>
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-3 border-[#2962ff] border-t-transparent rounded-full animate-spin" />
               <span className="text-[#787b86] text-sm">Loading chart...</span>
             </div>
           </div>
         ) : error && !marketData ? (
-          <div className={`bg-[#131722] ${fullscreen ? 'h-[calc(100vh-140px)]' : 'h-[380px] sm:h-[480px] md:h-[520px]'} flex items-center justify-center`}>
+          <div className={`bg-[#131722] flex items-center justify-center ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}>
             <div className="text-center px-4">
               <AlertCircle className="h-10 w-10 text-[#ef5350] mx-auto mb-3" />
               <p className="text-[#787b86] text-sm mb-3">{error}</p>
@@ -2519,10 +2512,10 @@ export default function MarketSniperIndicator() {
             </div>
           </div>
         ) : (
-          <div className="relative">
+          <div className={`relative ${fullscreen ? 'flex-1 flex flex-col' : ''}`}>
             <canvas
               ref={chartRef}
-              className={`w-full chart-smooth ${fullscreen ? 'h-[calc(100vh-140px)]' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}
+              className={`w-full chart-smooth ${fullscreen ? 'flex-1' : 'h-[380px] sm:h-[480px] md:h-[520px]'}`}
               style={{
                 background: '#131722',
                 cursor: isMobile ? 'default' : 'crosshair',
