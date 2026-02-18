@@ -92,6 +92,7 @@ export default function MarketSniperIndicator() {
   const latestPriceRef = useRef(null);
   const displayUpdateIntervalRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const drawChartRef = useRef(null);
 
   // Viewport state stored in refs for performance (no React re-renders on zoom/pan)
   // Separate viewports for chart and oscillator
@@ -100,7 +101,7 @@ export default function MarketSniperIndicator() {
     endIndex: 100,
     candleWidth: 8,
     minCandleWidth: 2,
-    maxCandleWidth: 50,
+    maxCandleWidth: 25,
   });
 
   const oscViewportRef = useRef({
@@ -108,7 +109,7 @@ export default function MarketSniperIndicator() {
     endIndex: 100,
     candleWidth: 8,
     minCandleWidth: 2,
-    maxCandleWidth: 50,
+    maxCandleWidth: 25,
   });
 
   // Track which section is being interacted with
@@ -430,14 +431,14 @@ export default function MarketSniperIndicator() {
       endIndex: 100,
       candleWidth: 8,
       minCandleWidth: 2,
-      maxCandleWidth: 50,
+      maxCandleWidth: 25,
     };
     oscViewportRef.current = {
       startIndex: 0,
       endIndex: 100,
       candleWidth: 8,
       minCandleWidth: 2,
-      maxCandleWidth: 50,
+      maxCandleWidth: 25,
     };
 
     if (displayUpdateIntervalRef.current) {
@@ -495,7 +496,7 @@ export default function MarketSniperIndicator() {
       endIndex: 100,
       candleWidth: 8,
       minCandleWidth: 2,
-      maxCandleWidth: 50,
+      maxCandleWidth: 25,
     };
     chartViewportRef.current = { ...defaultValues };
     // Also reset target
@@ -523,8 +524,8 @@ export default function MarketSniperIndicator() {
     const target = targetViewportRef.current;
     const vp = chartViewportRef.current;
 
-    // Lerp factor - 0.4 = responsive but smooth
-    const lerp = 0.4;
+    // Lerp factor - 1.0 = instant (no interpolation lag)
+    const lerp = 1.0;
 
     // Interpolate towards target
     vp.candleWidth += (target.candleWidth - vp.candleWidth) * lerp;
@@ -536,7 +537,10 @@ export default function MarketSniperIndicator() {
                  Math.abs(target.startIndex - vp.startIndex) +
                  Math.abs(target.endIndex - vp.endIndex);
 
-    drawChart();
+    // Use ref for latest drawChart
+    if (drawChartRef.current) {
+      drawChartRef.current();
+    }
 
     if (diff > 0.01) {
       animationFrameRef.current = requestAnimationFrame(animateViewport);
@@ -547,16 +551,21 @@ export default function MarketSniperIndicator() {
       vp.endIndex = target.endIndex;
       target.isAnimating = false;
       animationFrameRef.current = null;
-      drawChart();
+      if (drawChartRef.current) {
+        drawChartRef.current();
+      }
     }
   }, []);
 
   // Schedule render - just draws without animation
+  // Uses ref to always get latest drawChart (avoids stale closure)
   const scheduleRender = useCallback(() => {
     if (!animationFrameRef.current) {
       animationFrameRef.current = requestAnimationFrame(() => {
         animationFrameRef.current = null;
-        drawChart();
+        if (drawChartRef.current) {
+          drawChartRef.current();
+        }
       });
     }
   }, []);
@@ -569,7 +578,8 @@ export default function MarketSniperIndicator() {
     const candleCount = priceData.length;
 
     // Calculate how many candles fit in the chart width
-    const visibleCandleCount = Math.floor(chartWidth / viewport.candleWidth);
+    // Subtract 3 for safety margin to prevent candles from overflowing
+    const visibleCandleCount = Math.max(3, Math.floor(chartWidth / viewport.candleWidth) - 3);
 
     // Clamp indices
     let endIndex = Math.min(viewport.endIndex, candleCount);
@@ -594,7 +604,7 @@ export default function MarketSniperIndicator() {
     if (!canvas || !marketData?.priceData) return;
 
     const rect = canvas.getBoundingClientRect();
-    const chartWidth = rect.width - 75;
+    const chartWidth = rect.width - 90; // Right padding for price labels
     const candleCount = marketData.priceData.length;
 
     const viewport = chartViewportRef.current;
@@ -605,7 +615,8 @@ export default function MarketSniperIndicator() {
     const baseStart = target.startIndex !== undefined ? target.startIndex : viewport.startIndex;
 
     // Zoom factor - exponential for consistent feel
-    const zoomFactor = Math.exp(-deltaY * 0.002);
+    // Scroll DOWN = zoom IN (bigger candles), Scroll UP = zoom OUT (smaller candles)
+    const zoomFactor = Math.exp(deltaY * 0.002);
 
     // Calculate new candle width
     const newWidth = Math.max(
@@ -613,29 +624,18 @@ export default function MarketSniperIndicator() {
       Math.min(viewport.maxCandleWidth, baseWidth * zoomFactor)
     );
 
-    // Calculate cursor position
-    const cursorX = clientX - rect.left - 5;
-    const cursorPercent = Math.max(0, Math.min(1, cursorX / chartWidth));
+    // Calculate visible candles (subtract 3 for safety margin)
+    const newVisibleCount = Math.max(3, chartWidth / newWidth - 3);
 
-    // Calculate visible candles
-    const oldVisibleCount = chartWidth / baseWidth;
-    const newVisibleCount = chartWidth / newWidth;
+    // ANCHOR TO RIGHT: Keep endIndex at the latest candle, adjust startIndex
+    let newEnd = candleCount;
+    let newStart = Math.max(0, candleCount - newVisibleCount);
 
-    // Calculate index under cursor
-    const indexUnderCursor = baseStart + oldVisibleCount * cursorPercent;
-
-    // Calculate new range keeping cursor stable
-    let newStart = indexUnderCursor - newVisibleCount * cursorPercent;
-    let newEnd = newStart + newVisibleCount;
-
-    // Clamp
-    if (newEnd > candleCount) {
-      newEnd = candleCount;
-      newStart = Math.max(0, candleCount - newVisibleCount);
-    }
-    if (newStart < 0) {
-      newStart = 0;
-      newEnd = Math.min(newVisibleCount, candleCount);
+    // If user has scrolled left (viewing history), maintain relative position
+    if (viewport.endIndex < candleCount - 1) {
+      const currentEndOffset = candleCount - viewport.endIndex;
+      newEnd = candleCount - currentEndOffset;
+      newStart = Math.max(0, newEnd - newVisibleCount);
     }
 
     // Set TARGET values
@@ -907,7 +907,7 @@ export default function MarketSniperIndicator() {
         directionDecided = true;
         isHorizontalDrag = false;
       } else if (e.touches.length === 1) {
-        e.preventDefault(); // Prevent scroll on mobile
+        e.preventDefault();
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         lastTouchX = touchStartX;
@@ -917,7 +917,6 @@ export default function MarketSniperIndicator() {
         activeViewportRef.current = section;
         currentTouchViewport = section === 'osc' ? oscViewportRef : chartViewportRef;
 
-        // On mobile, start drag immediately for better responsiveness
         directionDecided = false;
         isHorizontalDrag = false;
 
@@ -946,28 +945,22 @@ export default function MarketSniperIndicator() {
         // Pinch zoom - SYNCS BOTH viewports
         const viewport = chartViewportRef.current;
         const rect = canvas.getBoundingClientRect();
-        const chartWidth = rect.width - 75;
+        const chartWidth = rect.width - 90; // Right padding for price labels
         const priceData = marketData?.priceData;
 
         if (priceData) {
           const candleCount = priceData.length;
-          const cursorX = center.x - rect.left - 5;
-          const cursorPercent = Math.max(0, Math.min(1, cursorX / chartWidth));
+          const newVisibleCount = Math.max(3, chartWidth / newCandleWidth - 3);
 
-          const oldVisibleCount = chartWidth / viewport.candleWidth;
-          const newVisibleCount = chartWidth / newCandleWidth;
-          const indexUnderCursor = viewport.startIndex + oldVisibleCount * cursorPercent;
+          // ANCHOR TO RIGHT: Keep most recent candles visible
+          let newEnd = candleCount;
+          let newStart = Math.max(0, candleCount - newVisibleCount);
 
-          let newStart = indexUnderCursor - newVisibleCount * cursorPercent;
-          let newEnd = newStart + newVisibleCount;
-
-          if (newEnd > candleCount) {
-            newEnd = candleCount;
-            newStart = Math.max(0, candleCount - newVisibleCount);
-          }
-          if (newStart < 0) {
-            newStart = 0;
-            newEnd = Math.min(newVisibleCount, candleCount);
+          // If user has scrolled left (viewing history), maintain relative position
+          if (viewport.endIndex < candleCount - 1) {
+            const currentEndOffset = candleCount - viewport.endIndex;
+            newEnd = candleCount - currentEndOffset;
+            newStart = Math.max(0, newEnd - newVisibleCount);
           }
 
           // Apply to BOTH viewports (instant for touch responsiveness)
@@ -1044,7 +1037,7 @@ export default function MarketSniperIndicator() {
       }
     };
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
 
@@ -1077,6 +1070,12 @@ export default function MarketSniperIndicator() {
       resizeObserver.disconnect();
     };
   }, [marketData]);
+
+  // Keep drawChartRef updated with latest drawChart function
+  // This ensures scheduleRender always uses the current chartType
+  useEffect(() => {
+    drawChartRef.current = drawChart;
+  });
 
   // Draw chart when data changes
   useEffect(() => {
@@ -1128,8 +1127,11 @@ export default function MarketSniperIndicator() {
     }
 
     const timeAxisHeight = 20;
-    const padding = { top: 8, right: 70, bottom: 5, left: 5 };
-    const chartWidth = width - padding.left - padding.right;
+    // Less padding on mobile
+    const rightPadding = isSmallScreen ? 40 : 90;
+    const padding = { top: 8, right: rightPadding, bottom: 5, left: 0 };
+    const chartRightMargin = 0; // Margin built into padding.right
+    const chartWidth = width - padding.left - padding.right - chartRightMargin;
     const availableHeight = height - timeAxisHeight - padding.top - padding.bottom;
 
     let mainChartHeight, volumeHeight, sniperOscHeight;
@@ -1181,26 +1183,16 @@ export default function MarketSniperIndicator() {
 
     const mainChartTop = padding.top;
 
+    // Chart boundary where candles stop
+    const clipBoundary = width - padding.right - chartRightMargin;
+
+    // Simple left-to-right positioning
     const getX = (visibleIdx) => padding.left + visibleIdx * gap + gap / 2;
+
+    // Use all visible data
+    const drawableData = visibleData;
+    const candlesToSkip = 0;
     const getY = (price) => mainChartTop + ((maxPrice - price) / priceRange) * (mainChartHeight - 15);
-
-    // Draw grid
-    ctx.strokeStyle = '#1e222d';
-    ctx.lineWidth = 0.5;
-    const gridLevels = 5;
-    for (let i = 0; i <= gridLevels; i++) {
-      const y = padding.top + (i / gridLevels) * (mainChartHeight - 15);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(width - padding.right, y);
-      ctx.stroke();
-
-      const price = maxPrice - (i / gridLevels) * priceRange;
-      ctx.fillStyle = '#787b86';
-      ctx.font = `400 ${fontSize}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(formatPrice(price), width - padding.right + 4, y + 4);
-    }
 
     // Time label formatter
     const formatTimeLabel = (timestamp, tf) => {
@@ -1222,16 +1214,16 @@ export default function MarketSniperIndicator() {
     const totalChartBottom = padding.top + mainChartHeight + volumeHeight + sniperOscHeight;
     const timeAxisY = height - 4;
 
-    // Draw time axis
+    // Draw time axis BEFORE clipping (spans all sections)
     ctx.font = `400 ${fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
     ctx.textAlign = 'center';
     const timeLabelsCount = isSmallScreen ? 4 : (isFullscreenMode ? 8 : 6);
-    const step = Math.max(1, Math.floor(visibleData.length / timeLabelsCount));
+    const step = Math.max(1, Math.floor(drawableData.length / timeLabelsCount));
 
-    for (let i = step; i < visibleData.length - 1; i += step) {
+    for (let i = step; i < drawableData.length - 1; i += step) {
       const x = getX(i);
-      const candle = visibleData[i];
-      if (candle?.timestamp) {
+      const candle = drawableData[i];
+      if (candle?.timestamp && x < clipBoundary) {
         ctx.strokeStyle = '#1e222d';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -1244,25 +1236,44 @@ export default function MarketSniperIndicator() {
       }
     }
 
-    // Current time label
-    if (visibleData.length > 0 && endIdx >= priceData.length - 1) {
-      const lastCandle = visibleData[visibleData.length - 1];
-      const lastX = getX(visibleData.length - 1);
-      if (lastCandle?.timestamp) {
+    // Current time label - keep within chart boundary
+    if (drawableData.length > 0 && endIdx >= priceData.length - 1) {
+      const lastCandle = drawableData[drawableData.length - 1];
+      const lastX = getX(drawableData.length - 1);
+      if (lastCandle?.timestamp && lastX < clipBoundary) {
         const label = formatTimeLabel(lastCandle.timestamp, timeframe);
         ctx.font = `500 ${fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
         const labelWidth = ctx.measureText(label).width + 8;
         ctx.fillStyle = '#2962ff';
-        const bgX = Math.min(lastX - labelWidth/2, width - padding.right - labelWidth - 2);
+        // Keep label within clipBoundary
+        const bgX = Math.min(lastX - labelWidth/2, clipBoundary - labelWidth - 5);
         ctx.fillRect(bgX, height - 16, labelWidth, 13);
         ctx.fillStyle = '#fff';
         ctx.fillText(label, bgX + labelWidth/2, timeAxisY);
       }
     }
 
-    // Draw candles or line
+    // Draw grid lines for main chart section
+    ctx.strokeStyle = '#1e222d';
+    ctx.lineWidth = 0.5;
+    const gridLevels = 5;
+    for (let i = 0; i <= gridLevels; i++) {
+      const y = padding.top + (i / gridLevels) * (mainChartHeight - 15);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+    }
+
+    // Clip main chart drawing to prevent overflow into price label area AND volume/oscillator sections
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, mainChartTop, clipBoundary, mainChartHeight);
+    ctx.clip();
+
+    // Draw candles or line (use drawableData which is limited to fit)
     if (chartType === 'candle') {
-      visibleData.forEach((d, i) => {
+      drawableData.forEach((d, i) => {
         const x = getX(i);
         const isGreen = d.close >= d.open;
         const bullColor = '#26a69a';
@@ -1284,11 +1295,11 @@ export default function MarketSniperIndicator() {
         ctx.fillRect(x - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
       });
     } else {
-      const isUp = visibleData[visibleData.length - 1]?.close >= visibleData[0]?.open;
+      const isUp = drawableData[drawableData.length - 1]?.close >= drawableData[0]?.open;
       ctx.beginPath();
       ctx.strokeStyle = isUp ? '#26a69a' : '#ef5350';
       ctx.lineWidth = 1.5;
-      visibleData.forEach((d, i) => {
+      drawableData.forEach((d, i) => {
         const x = getX(i);
         const y = getY(d.close);
         if (i === 0) ctx.moveTo(x, y);
@@ -1296,7 +1307,7 @@ export default function MarketSniperIndicator() {
       });
       ctx.stroke();
 
-      const lastX = getX(visibleData.length - 1);
+      const lastX = getX(drawableData.length - 1);
       const firstX = getX(0);
       ctx.lineTo(lastX, mainChartHeight);
       ctx.lineTo(firstX, mainChartHeight);
@@ -1308,6 +1319,8 @@ export default function MarketSniperIndicator() {
       ctx.fillStyle = gradient;
       ctx.fill();
     }
+
+    // EMAs, Fibonacci, Adaptive Trend are drawn inside the clip region
 
     // Draw EMAs
     // Smooth line drawing with bezier curves
@@ -1451,24 +1464,26 @@ export default function MarketSniperIndicator() {
         ctx.stroke();
       }
 
-      // Trend label - Positioned at top right, subtle background
-      const isBullishTrend = trendDirection[trendDirection.length - 1];
-      const trendText = isBullishTrend ? 'BULL' : 'BEAR';
-      const trendColor = isBullishTrend ? '#10b981' : '#ef4444';
+      // Trend label - Only show on larger screens to save space on mobile
+      if (!isSmallScreen) {
+        const isBullishTrend = trendDirection[trendDirection.length - 1];
+        const trendText = isBullishTrend ? 'BULL' : 'BEAR';
+        const trendColor = isBullishTrend ? '#10b981' : '#ef4444';
 
-      ctx.font = `600 ${fontSizeSmall}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
-      const trendWidth = ctx.measureText(trendText).width + 16;
+        ctx.font = `600 ${fontSizeSmall}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
+        const trendWidth = ctx.measureText(trendText).width + 16;
 
-      // Draw badge background
-      ctx.fillStyle = isBullishTrend ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-      ctx.beginPath();
-      ctx.roundRect(width - padding.right - trendWidth - 5, padding.top + 2, trendWidth, 18, 4);
-      ctx.fill();
+        // Draw badge background
+        ctx.fillStyle = isBullishTrend ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        ctx.beginPath();
+        ctx.roundRect(width - padding.right - trendWidth - 5, padding.top + 2, trendWidth, 18, 4);
+        ctx.fill();
 
-      // Draw text
-      ctx.fillStyle = trendColor;
-      ctx.textAlign = 'center';
-      ctx.fillText(trendText, width - padding.right - trendWidth/2 - 5, padding.top + 14);
+        // Draw text
+        ctx.fillStyle = trendColor;
+        ctx.textAlign = 'center';
+        ctx.fillText(trendText, width - padding.right - trendWidth/2 - 5, padding.top + 14);
+      }
     }
 
     // Draw Auto Fibonacci Retracement
@@ -1529,19 +1544,19 @@ export default function MarketSniperIndicator() {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
 
-        // Draw compact label on right side (before price axis)
+        // Draw compact label on LEFT side of chart
         const labelText = fib.label;
         ctx.font = `500 ${isSmallScreen ? 8 : (isFullscreenMode ? 10 : 9)}px -apple-system, BlinkMacSystemFont, sans-serif`;
         const labelWidth = ctx.measureText(labelText).width + 6;
 
         // Background for label
         ctx.fillStyle = 'rgba(19, 23, 34, 0.85)';
-        ctx.fillRect(width - padding.right - labelWidth - 2, y - 7, labelWidth, 14);
+        ctx.fillRect(5, y - 7, labelWidth, 14);
 
         // Label text
         ctx.fillStyle = fib.color;
-        ctx.textAlign = 'right';
-        ctx.fillText(labelText, width - padding.right - 4, y + 3);
+        ctx.textAlign = 'left';
+        ctx.fillText(labelText, 8, y + 3);
       });
     }
 
@@ -1581,6 +1596,30 @@ export default function MarketSniperIndicator() {
       });
     }
 
+    ctx.restore(); // End chart clip region - price labels and lines below should not be clipped
+
+    // Mobile-friendly price formatter
+    const formatPriceCompact = (price) => {
+      if (isSmallScreen) {
+        if (price >= 10000) return Math.round(price).toLocaleString();
+        if (price >= 1000) return price.toFixed(0);
+        if (price >= 100) return price.toFixed(1);
+        if (price >= 1) return price.toFixed(2);
+        return price.toFixed(4);
+      }
+      return formatPrice(price);
+    };
+
+    // Draw grid price labels (outside clip region so they're visible)
+    ctx.fillStyle = '#787b86';
+    ctx.font = `400 ${isSmallScreen ? 8 : fontSize}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+    ctx.textAlign = 'left';
+    for (let i = 0; i <= gridLevels; i++) {
+      const y = padding.top + (i / gridLevels) * (mainChartHeight - 15);
+      const price = maxPrice - (i / gridLevels) * priceRange;
+      ctx.fillText(formatPriceCompact(price), width - padding.right + 2, y + 4);
+    }
+
     // Current price line
     const currentPrice = livePrice || priceData[priceData.length - 1].close;
     const currentY = getY(currentPrice);
@@ -1595,40 +1634,48 @@ export default function MarketSniperIndicator() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Current price tag
+    // Current price tag - responsive width
     const tagColor = isUp ? '#26a69a' : '#ef5350';
-    const priceText = formatPrice(currentPrice);
+    const priceText = formatPriceCompact(currentPrice);
+    const tagWidth = isSmallScreen ? 38 : 70;
 
     ctx.fillStyle = tagColor;
-    ctx.fillRect(width - padding.right, currentY - 8, 70, 16);
+    ctx.fillRect(width - padding.right, currentY - 7, tagWidth, 14);
     ctx.fillStyle = '#fff';
-    ctx.font = `600 ${fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+    ctx.font = `600 ${isSmallScreen ? 8 : fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(priceText, width - padding.right + 4, currentY + 3);
+    ctx.fillText(priceText, width - padding.right + 2, currentY + 3);
 
-    // Countdown timer
+    // Countdown timer - responsive
     if (candleCountdown) {
       ctx.fillStyle = '#1e222d';
-      ctx.fillRect(width - padding.right, currentY + 9, 70, 12);
+      ctx.fillRect(width - padding.right, currentY + 8, tagWidth, 11);
       ctx.fillStyle = '#787b86';
-      ctx.font = `400 ${fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
-      ctx.fillText(candleCountdown, width - padding.right + 4, currentY + 18);
+      ctx.font = `400 ${isSmallScreen ? 7 : fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+      ctx.fillText(candleCountdown, width - padding.right + 2, currentY + 16);
     }
 
-    // Draw volume
+    // Draw volume section with clear separator
     if (indicators.volume) {
       const volumeTop = padding.top + mainChartHeight + 2;
       const volumes = priceData.map(d => d.volume || 0);
       const maxVol = Math.max(...volumes);
 
-      ctx.strokeStyle = '#1e222d';
-      ctx.lineWidth = 0.5;
+      // Draw section separator line
+      ctx.strokeStyle = '#2a2e39';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(padding.left, volumeTop);
-      ctx.lineTo(width - padding.right, volumeTop);
+      ctx.moveTo(0, volumeTop - 1);
+      ctx.lineTo(width, volumeTop - 1);
       ctx.stroke();
 
-      visibleData.forEach((d, i) => {
+      // Clip volume bars to its own section only
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, volumeTop, clipBoundary, volumeHeight);
+      ctx.clip();
+
+      drawableData.forEach((d, i) => {
         const x = getX(i);
         const volH = maxVol > 0 ? (d.volume / maxVol) * (volumeHeight - 6) : 0;
         const y = volumeTop + volumeHeight - volH - 2;
@@ -1638,13 +1685,15 @@ export default function MarketSniperIndicator() {
         ctx.fillRect(x - bodyWidth / 2, y, bodyWidth, volH);
       });
 
+      ctx.restore(); // Remove volume clip
+
       ctx.fillStyle = '#787b86';
       ctx.font = `400 ${fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText('VOL', padding.left + 2, volumeTop + 10);
     }
 
-    // Draw Sniper Oscillator
+    // Draw Sniper Oscillator section with clear separator
     if (indicators.sniperOsc && marketData.sniperOscillator) {
       const { k: kLine } = marketData.sniperOscillator;
       const oscTop = padding.top + mainChartHeight + volumeHeight + 4;
@@ -1652,11 +1701,12 @@ export default function MarketSniperIndicator() {
       const oscPaddingBottom = 22;
       const oscHeight = sniperOscHeight - 25 - oscPaddingTop - oscPaddingBottom;
 
-      ctx.strokeStyle = '#1e222d';
-      ctx.lineWidth = 0.5;
+      // Draw section separator line
+      ctx.strokeStyle = '#2a2e39';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(padding.left, oscTop - 2);
-      ctx.lineTo(width - padding.right, oscTop - 2);
+      ctx.moveTo(0, oscTop - 2);
+      ctx.lineTo(width, oscTop - 2);
       ctx.stroke();
 
       if (kLine && kLine.length > 0) {
@@ -1666,9 +1716,16 @@ export default function MarketSniperIndicator() {
         };
 
         const oscGap = oscCandleWidth;
+        // Same positioning as main chart
         const getOscX = (oscVisibleIdx) => padding.left + oscVisibleIdx * oscGap + oscGap / 2;
 
-        // Draw level lines
+        // Clip oscillator to its own section only
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, oscTop, clipBoundary, sniperOscHeight);
+        ctx.clip();
+
+        // Draw level lines (now clipped)
         const y80 = getOscY(80);
         ctx.strokeStyle = 'rgba(239, 83, 80, 0.2)';
         ctx.lineWidth = 0.5;
@@ -1696,10 +1753,12 @@ export default function MarketSniperIndicator() {
 
         // Draw filled area
         const baseYFill = getOscY(5);
+        // Adjust for skipped candles to match main chart
+        const adjustedOscStartIdx = oscStartIdx + candlesToSkip;
         kLine.forEach((k) => {
           const globalIdx = priceData.findIndex(p => p.date === k.date);
-          if (globalIdx < oscStartIdx || globalIdx >= oscEndIdx) return;
-          const visibleIdx = globalIdx - oscStartIdx;
+          if (globalIdx < adjustedOscStartIdx || globalIdx >= oscEndIdx) return;
+          const visibleIdx = globalIdx - adjustedOscStartIdx;
 
           const x = getOscX(visibleIdx);
           const value = k.value;
@@ -1766,8 +1825,8 @@ export default function MarketSniperIndicator() {
           const points = [];
           data.forEach((m) => {
             const globalIdx = priceData.findIndex(p => p.date === m.date);
-            if (globalIdx < oscStartIdx || globalIdx >= oscEndIdx) return;
-            const visibleIdx = globalIdx - oscStartIdx;
+            if (globalIdx < adjustedOscStartIdx || globalIdx >= oscEndIdx) return;
+            const visibleIdx = globalIdx - adjustedOscStartIdx;
             const x = getOscX(visibleIdx);
             const y = getOscY(m.value);
             points.push({ x, y });
@@ -1804,61 +1863,66 @@ export default function MarketSniperIndicator() {
         drawOscLine(ingMid, '#ef5350', 1);
         drawOscLine(ema200Line, '#ffffff', 1.5);
 
-        // Level labels
+        ctx.restore(); // Remove oscillator clip
+
+        // Level labels - adjusted for mobile
+        const labelFontSize = isSmallScreen ? 8 : fontSizeSmall - 1;
         [20, 50, 80].forEach(level => {
           const y = getOscY(level);
           ctx.fillStyle = level === 50 ? '#787b86' : level === 80 ? 'rgba(239, 83, 80, 0.8)' : 'rgba(38, 166, 154, 0.8)';
-          ctx.font = `400 ${fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+          ctx.font = `400 ${labelFontSize}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
           ctx.textAlign = 'left';
-          ctx.fillText(level.toString(), width - padding.right + 4, y + 3);
+          ctx.fillText(level.toString(), width - padding.right + 2, y + 3);
         });
 
-        // Current value badge
+        // Current value badge - smaller on mobile
         const lastK = kLine[kLine.length - 1];
         if (lastK && typeof lastK.value === 'number') {
           const kVal = lastK.value;
           const y = getOscY(kVal);
           const badgeColor = kVal >= 80 ? '#ef5350' : kVal <= 20 ? '#26a69a' : '#ff9800';
 
-          const valueText = kVal.toFixed(1);
+          const valueText = isSmallScreen ? kVal.toFixed(0) : kVal.toFixed(1);
+          const badgeWidth = isSmallScreen ? 24 : 30;
           ctx.fillStyle = badgeColor;
           ctx.beginPath();
-          ctx.roundRect(width - padding.right + 2, y - 7, 30, 14, 3);
+          ctx.roundRect(width - padding.right + 1, y - 6, badgeWidth, 12, 3);
           ctx.fill();
 
           ctx.fillStyle = '#fff';
-          ctx.font = `600 ${fontSizeSmall - 1}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
+          ctx.font = `600 ${isSmallScreen ? 8 : fontSizeSmall - 1}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
           ctx.textAlign = 'center';
-          ctx.fillText(valueText, width - padding.right + 17, y + 3);
+          ctx.fillText(valueText, width - padding.right + 1 + badgeWidth / 2, y + 3);
         }
 
         // Indicator title
         ctx.fillStyle = '#787b86';
-        ctx.font = `500 ${fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+        ctx.font = `500 ${isSmallScreen ? 9 : fontSizeSmall}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
         ctx.textAlign = 'left';
         ctx.fillText('SNIPER', padding.left + 3, oscTop + 12);
 
-        // Current values
-        const lastEMA200 = ema200Line[ema200Line.length - 1]?.value?.toFixed(1) || '--';
-        const lastRed = ingMid[ingMid.length - 1]?.value?.toFixed(1) || '--';
-        const lastGreen = ingSlow[ingSlow.length - 1]?.value?.toFixed(1) || '--';
-        const lastBlue = ma1Line[ma1Line.length - 1]?.value?.toFixed(1) || '--';
+        // Current values - compact on mobile
+        const lastEMA200 = ema200Line[ema200Line.length - 1]?.value?.toFixed(isSmallScreen ? 0 : 1) || '--';
+        const lastRed = ingMid[ingMid.length - 1]?.value?.toFixed(isSmallScreen ? 0 : 1) || '--';
+        const lastGreen = ingSlow[ingSlow.length - 1]?.value?.toFixed(isSmallScreen ? 0 : 1) || '--';
+        const lastBlue = ma1Line[ma1Line.length - 1]?.value?.toFixed(isSmallScreen ? 0 : 1) || '--';
 
-        let xPos = padding.left + 50;
+        const valueSpacing = isSmallScreen ? 22 : 32;
+        let xPos = padding.left + (isSmallScreen ? 42 : 50);
         const valY = oscTop + 12;
-        ctx.font = `400 ${fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
+        ctx.font = `400 ${isSmallScreen ? 8 : fontSizeSmall - 1}px -apple-system, BlinkMacSystemFont, Trebuchet MS, sans-serif`;
 
         ctx.fillStyle = '#ffffff';
         ctx.fillText(lastEMA200, xPos, valY);
-        xPos += 32;
+        xPos += valueSpacing;
 
         ctx.fillStyle = '#ef5350';
         ctx.fillText(lastRed, xPos, valY);
-        xPos += 32;
+        xPos += valueSpacing;
 
         ctx.fillStyle = '#66bb6a';
         ctx.fillText(lastGreen, xPos, valY);
-        xPos += 32;
+        xPos += valueSpacing;
 
         ctx.fillStyle = '#2962ff';
         ctx.fillText(lastBlue, xPos, valY);
@@ -1992,7 +2056,7 @@ export default function MarketSniperIndicator() {
       endIndex: candleCount,
       candleWidth: 8,
       minCandleWidth: 2,
-      maxCandleWidth: 50,
+      maxCandleWidth: 25,
     };
     chartViewportRef.current = { ...defaultViewport };
     oscViewportRef.current = { ...defaultViewport };
@@ -2032,6 +2096,7 @@ export default function MarketSniperIndicator() {
 
   return (
     <div ref={fullscreenContainerRef} className={`bg-[#131722] overflow-hidden ${fullscreen ? 'fixed inset-0 z-50' : 'rounded-lg border border-[#363a45]'}`}>
+
       {/* Mobile-Optimized Header */}
       <div className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]">
         {/* Left Section: Symbol + Timeframe */}
@@ -2440,13 +2505,13 @@ export default function MarketSniperIndicator() {
 
             {/* Zoom Controls - Floating buttons */}
             <div className="absolute bottom-3 right-2 flex flex-col gap-1.5 z-10">
-              {/* Zoom In */}
+              {/* Zoom In - positive deltaY = bigger candles */}
               <button
                 onClick={() => {
                   const canvas = chartRef.current;
                   if (!canvas) return;
                   const rect = canvas.getBoundingClientRect();
-                  handleZoom(-100, rect.width / 2, rect.height / 2);
+                  handleZoom(100, rect.width / 2, rect.height / 2);
                 }}
                 className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
                 title="Zoom In"
@@ -2459,13 +2524,13 @@ export default function MarketSniperIndicator() {
                 </svg>
               </button>
 
-              {/* Zoom Out */}
+              {/* Zoom Out - negative deltaY = smaller candles */}
               <button
                 onClick={() => {
                   const canvas = chartRef.current;
                   if (!canvas) return;
                   const rect = canvas.getBoundingClientRect();
-                  handleZoom(100, rect.width / 2, rect.height / 2);
+                  handleZoom(-100, rect.width / 2, rect.height / 2);
                 }}
                 className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
                 title="Zoom Out"
@@ -2503,6 +2568,19 @@ export default function MarketSniperIndicator() {
                   <Maximize2 className="h-5 w-5" />
                 )}
               </button>
+
+              {/* Scroll Down Button - Mobile only */}
+              {!fullscreen && isMobile && (
+                <button
+                  onClick={() => {
+                    window.scrollBy({ top: 300, behavior: 'smooth' });
+                  }}
+                  className="w-9 h-9 bg-[#1e222d]/90 hover:bg-[#2a2e39] border border-[#363a45] rounded-lg flex items-center justify-center text-[#d1d4dc] active:scale-95 transition-all shadow-lg"
+                  title="Scroll Down"
+                >
+                  <ChevronDown className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
           </div>
@@ -2680,6 +2758,7 @@ export default function MarketSniperIndicator() {
           <span className="text-xs text-amber-400">Market closed. Showing last traded prices.</span>
         </div>
       )}
+
 
       {/* Click Outside Handler */}
       {(showAssetSearch || showIndicatorMenu || showMobileTimeframes) && (

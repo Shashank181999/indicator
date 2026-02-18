@@ -3,22 +3,41 @@
 @tailwind utilities;
 
 :root {
-  /* TradingView-inspired dark theme */
-  --background: #131722;
-  --foreground: #d1d4dc;
-  --card: #1e222d;
-  --card-hover: #252a37;
-  --accent: #2962ff;
-  --accent-hover: #3d72ff;
-  --success: #26a69a;
-  --danger: #ef5350;
-  --muted: #787b86;
-  --border: #2a2e39;
-  --border-light: #363a45;
+  /* Market Sniper Logo Color Theme */
+  --background: #030712;
+  --foreground: #e5e7eb;
+  --card: #0f172a;
+  --card-hover: #1e293b;
+
+  /* Primary: Cyan/Teal from logo */
+  --accent: #06b6d4;
+  --accent-light: #22d3ee;
+  --accent-dark: #0891b2;
+
+  /* Secondary: Blue from logo */
+  --secondary: #3b82f6;
+  --secondary-light: #60a5fa;
+  --secondary-dark: #2563eb;
+
+  /* Tertiary: Orange from logo arrow */
+  --orange: #f97316;
+  --orange-light: #fb923c;
+
+  /* States */
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --muted: #6b7280;
+
+  /* Borders */
+  --border: #1f2937;
+  --border-light: #374151;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
@@ -29,120 +48,203 @@ html {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
-/* Prevent text selection on interactive elements */
-button, select {
-  -webkit-user-select: none;
-  user-select: none;
+/* Selection */
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: #fff;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Hide scrollbar but allow scrolling */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Custom scrollbar for visible scrollbars */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #363a45 #1e222d;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: #1e222d;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #363a45;
-    border-radius: 3px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #4a4e59;
-  }
-}
-
-/* Smooth transitions for interactive elements only */
-button,
-a,
-input,
-select,
-.transition-all {
-  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Custom scrollbar for TradingView-style dark theme */
+/* Scrollbar - Minimal */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e222d;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #363a45;
+  background: #374151;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a4e59;
+  background: #4b5563;
 }
 
-/* Selection color */
-::selection {
-  background: rgba(41, 98, 255, 0.3);
-  color: #fff;
+/* Smooth transitions */
+button,
+a,
+input,
+select {
+  transition-property: all;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Chart container specific styles */
-.chart-container {
-  touch-action: pan-y pinch-zoom;
-  -webkit-overflow-scrolling: touch;
+/* Touch action */
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
 }
 
-/* TradingView-like button styles */
-.tv-button {
-  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all;
-  @apply bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45];
+/* Focus styles */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.tv-button-primary {
-  @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all;
-  @apply bg-[#2962ff] text-white hover:bg-[#3d72ff];
-  @apply shadow-lg shadow-[#2962ff]/20;
+/* Premium button styles */
+.btn-primary {
+  @apply px-6 py-3 rounded-xl font-semibold transition-all;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
 }
 
-.tv-button-ghost {
-  @apply px-2 py-1.5 rounded-lg text-sm font-medium transition-all;
-  @apply text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39];
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
 }
 
-/* Price animation */
+.btn-secondary {
+  @apply px-6 py-3 rounded-xl font-semibold transition-all;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--secondary) 50%, var(--orange) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Glow effects */
+.glow-cyan {
+  box-shadow: 0 0 40px rgba(6, 182, 212, 0.3);
+}
+
+.glow-orange {
+  box-shadow: 0 0 40px rgba(249, 115, 22, 0.3);
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(6, 182, 212, 0.5);
+  }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out;
+}
+
+/* Stagger animations */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-300;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+/* Price animations */
 @keyframes price-up {
-  0% { background-color: rgba(38, 166, 154, 0.3); }
+  0% { background-color: rgba(34, 197, 94, 0.3); }
   100% { background-color: transparent; }
 }
 
 @keyframes price-down {
-  0% { background-color: rgba(239, 83, 80, 0.3); }
+  0% { background-color: rgba(239, 68, 68, 0.3); }
   100% { background-color: transparent; }
 }
 
@@ -154,307 +256,56 @@ select,
   animation: price-down 0.5s ease-out;
 }
 
-/* Pulse animation for live indicator */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
+/* Chart container */
+.chart-container {
+  touch-action: pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
 }
 
-.pulse-ring::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: inherit;
-  animation: pulse-ring 1.5s ease-out infinite;
+/* Status badges */
+.badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
 }
 
-/* Card hover effect */
-.card-hover {
-  @apply transition-all duration-200;
+.badge-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
-.card-hover:hover {
-  @apply bg-[#252a37] border-[#363a45];
-  transform: translateY(-1px);
+.badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* Input focus styles */
-input:focus,
-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.2);
+.badge-info {
+  background: rgba(6, 182, 212, 0.1);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
-/* Mobile-specific optimizations */
+/* Mobile optimizations */
 @media (max-width: 640px) {
-  /* Larger touch targets */
-  button {
-    min-height: 36px;
-    min-width: 36px;
+  main {
+    padding-top: 0 !important;
   }
 
-  /* Prevent zoom on input focus */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   input,
   select,
   textarea {
     font-size: 16px !important;
   }
-
-  /* Better spacing on mobile */
-  .mobile-padding {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  /* Full-width buttons on mobile */
-  .mobile-full-width {
-    width: 100%;
-  }
 }
 
-/* Tablet optimizations */
-@media (min-width: 640px) and (max-width: 1024px) {
-  /* Slightly larger touch targets */
-  button {
-    min-height: 40px;
-  }
-}
+/* Remove forced heights - let content determine size */
 
-/* Disable double-tap zoom on interactive elements */
-button,
-a,
-input,
-select {
-  touch-action: manipulation;
-}
-
-/* Gradient backgrounds */
-.gradient-primary {
-  background: linear-gradient(135deg, #2962ff 0%, #1e53e4 100%);
-}
-
-.gradient-success {
-  background: linear-gradient(135deg, #26a69a 0%, #1e8e82 100%);
-}
-
-.gradient-danger {
-  background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
-}
-
-/* Backdrop blur support */
-@supports (backdrop-filter: blur(10px)) {
-  .backdrop-blur-supported {
-    backdrop-filter: blur(10px);
-    background-color: rgba(19, 23, 34, 0.8);
-  }
-}
-
-/* Animation for loading spinner */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Fade in animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out;
-}
-
-/* Slide up animation */
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slideUp {
-  animation: slideUp 0.3s ease-out;
-}
-
-/* Lightweight Charts container styling */
-.tv-lightweight-charts {
-  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif !important;
-}
-
-/* Override lightweight-charts internal styles for better appearance */
-.tv-lightweight-charts .pane {
-  border-radius: 0 !important;
-}
-
-/* Price scale styling */
-.tv-lightweight-charts .price-axis {
-  background: transparent !important;
-}
-
-/* Time scale styling */
-.tv-lightweight-charts .time-axis {
-  background: transparent !important;
-}
-
-/* Modal overlay */
-.modal-overlay {
-  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
-}
-
-/* Tooltip styles */
-.tooltip {
-  @apply absolute z-50 px-2 py-1 text-xs text-white bg-[#2a2e39] rounded shadow-lg;
-  @apply opacity-0 pointer-events-none transition-opacity;
-}
-
-.tooltip-trigger:hover .tooltip {
-  @apply opacity-100;
-}
-
-/* Status badges */
-.badge {
-  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
-}
-
-.badge-success {
-  @apply bg-[#26a69a]/20 text-[#26a69a];
-}
-
-.badge-danger {
-  @apply bg-[#ef5350]/20 text-[#ef5350];
-}
-
-.badge-warning {
-  @apply bg-amber-500/20 text-amber-400;
-}
-
-.badge-info {
-  @apply bg-[#2962ff]/20 text-[#2962ff];
-}
-
-/* Focus visible styles for accessibility */
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Indicator toggle checkbox animation */
-@keyframes checkmark {
-  0% {
-    transform: scale(0) rotate(45deg);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.2) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-}
-
-.indicator-checkbox-enter {
-  animation: checkmark 0.15s ease-out forwards;
-}
-
-/* Smooth dropdown animation */
-@keyframes dropdownEnter {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes dropdownExit {
-  from {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.95) translateY(-8px);
-  }
-}
-
-.dropdown-enter {
-  animation: dropdownEnter 0.15s ease-out forwards;
-}
-
-.dropdown-exit {
-  animation: dropdownExit 0.1s ease-in forwards;
-}
-
-/* Glow effect for active indicators */
-.indicator-glow {
-  box-shadow: 0 0 8px currentColor;
-}
-
-/* Chart smoothness */
-.chart-smooth {
-  image-rendering: optimizeQuality;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Status bar scroll smoothness */
-.status-bar-scroll {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Indicator value transition */
-.indicator-value {
-  transition: color 0.2s ease-out;
-}
-
-/* Signal badge pulse */
-@keyframes signalPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.signal-pulse {
-  animation: signalPulse 2s ease-in-out infinite;
-}
-
-/* Reduce motion for users who prefer it */
+/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -465,17 +316,8 @@ select:focus-visible {
   }
 }
 
-/* High contrast mode adjustments */
-@media (prefers-contrast: high) {
-  :root {
-    --border: #4a4e59;
-    --muted: #9a9da6;
-  }
-}
-
-/* Dark mode is default, but support light mode override if needed */
+/* Dark mode is default */
 @media (prefers-color-scheme: light) {
-  /* Keep dark theme as it's a trading app */
   :root {
     color-scheme: dark;
   }

@@ -315,6 +315,35 @@ function calculateSniperOscillator(data, rsiPeriod = 14, smoothK = 3, smoothD = 
     }
   }
 
+  // Pad kLine to match priceData length from the start
+  // Smooth transition from neutral (50) to first calculated value
+  if (kLine.length > 0 && data.length > kLine.length) {
+    const firstK = kLine[0];
+    const paddedK = [];
+
+    // Find where kLine starts in the original data
+    const kStartIdx = data.findIndex(d => d.date === firstK.date);
+
+    // Create smooth transition from 50 to first value
+    for (let i = 0; i < kStartIdx; i++) {
+      // Ease-in transition: starts slow, accelerates toward first value
+      const progress = i / kStartIdx;
+      const eased = progress * progress; // Quadratic ease-in
+      const value = 50 + (firstK.value - 50) * eased;
+
+      paddedK.push({
+        date: data[i].date,
+        timestamp: data[i].timestamp,
+        value: parseFloat(value.toFixed(2)),
+      });
+    }
+
+    // Add original kLine data
+    paddedK.push(...kLine);
+
+    return { k: paddedK, d: dLine, histogram };
+  }
+
   return { k: kLine, d: dLine, histogram };
 }
 
