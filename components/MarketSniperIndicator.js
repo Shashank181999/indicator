@@ -203,13 +203,46 @@ export default function MarketSniperIndicator() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+      // Cleanup iOS body styles on unmount
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
     };
+  }, []);
+
+  // Detect iOS device (iPhone/iPad)
+  const isIOS = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }, []);
 
   // Toggle fullscreen function
   const toggleFullscreen = useCallback(() => {
     const container = fullscreenContainerRef.current;
     if (!container) return;
+
+    // iOS doesn't support Fullscreen API - use CSS fallback
+    if (isIOS()) {
+      setFullscreen(prev => {
+        const newState = !prev;
+        // Lock body scroll when entering fullscreen on iOS
+        if (newState) {
+          document.body.style.overflow = 'hidden';
+          document.body.style.position = 'fixed';
+          document.body.style.width = '100%';
+          document.body.style.height = '100%';
+        } else {
+          document.body.style.overflow = '';
+          document.body.style.position = '';
+          document.body.style.width = '';
+          document.body.style.height = '';
+        }
+        return newState;
+      });
+      return;
+    }
 
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
 
@@ -237,7 +270,7 @@ export default function MarketSniperIndicator() {
         setFullscreen(false);
       }
     }
-  }, []);
+  }, [isIOS]);
 
   // Calculate candle countdown timer
   useEffect(() => {
