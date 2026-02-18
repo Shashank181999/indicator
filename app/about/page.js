@@ -338,7 +338,7 @@ export default function AboutPage() {
               Meet the <span className="bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">Experts</span>
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
-              The brilliant minds behind Market Sniper's powerful trading indicators.
+              The brilliant minds behind Market Sniper&apos;s powerful trading indicators.
             </p>
           </div>
 

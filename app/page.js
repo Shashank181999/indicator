@@ -523,7 +523,7 @@ export default function HomePage() {
                     <span className="text-emerald-400 font-bold text-sm">{testimonial.profit}</span>
                   </div>
                 </div>
-                <p className="text-gray-400 text-sm leading-relaxed">"{testimonial.quote}"</p>
+                <p className="text-gray-400 text-sm leading-relaxed">&quot;{testimonial.quote}&quot;</p>
                 <div className="flex gap-1 mt-4">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">

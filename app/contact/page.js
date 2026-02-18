@@ -126,8 +126,8 @@ export default function ContactPage() {
           </h1>
 
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Have questions about Market Sniper? We're here to help.
-            Reach out and we'll get back to you as soon as possible.
+            Have questions about Market Sniper? We&apos;re here to help.
+            Reach out and we&apos;ll get back to you as soon as possible.
           </p>
         </div>
       </section>
@@ -171,14 +171,14 @@ export default function ContactPage() {
             {/* Left - Info */}
             <div className={`transition-all duration-1000 ${isVisible('contact-form') ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-                Let's Start a
+                Let&apos;s Start a
                 <span className="block bg-gradient-to-r from-cyan-400 to-orange-400 bg-clip-text text-transparent">
                   Conversation
                 </span>
               </h2>
               <p className="text-gray-400 mb-8">
                 Whether you have questions about our trading indicators, need help with your
-                subscription, or want to provide feedback - we'd love to hear from you.
+                subscription, or want to provide feedback - we&apos;d love to hear from you.
               </p>
 
               <div className="space-y-6">
@@ -206,7 +206,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h4 className="text-white font-medium mb-1">Helpful Resources</h4>
-                    <p className="text-gray-500 text-sm">We'll guide you to the right solution</p>
+                    <p className="text-gray-500 text-sm">We&apos;ll guide you to the right solution</p>
                   </div>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export default function ContactPage() {
                     </div>
                     <h3 className="text-xl font-semibold text-white mb-2">Message Sent!</h3>
                     <p className="text-gray-400 mb-6">
-                      Thank you for reaching out. We'll get back to you within 24 hours.
+                      Thank you for reaching out. We&apos;ll get back to you within 24 hours.
                     </p>
                     <button
                       onClick={() => setSuccess(false)}
