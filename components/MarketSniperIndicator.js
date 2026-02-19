@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Target,
   TrendingUp,
@@ -156,6 +157,9 @@ export default function MarketSniperIndicator() {
   const [showGuide, setShowGuide] = useState(false);
   const [chartType, setChartType] = useState('candle');
   const [fullscreen, setFullscreen] = useState(false);
+  const [iosViewportHeight, setIosViewportHeight] = useState(0);
+  const [isIOSFullscreen, setIsIOSFullscreen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const fullscreenContainerRef = useRef(null);
   const [timeframe, setTimeframe] = useState('15m');
   const [showAssetSearch, setShowAssetSearch] = useState(false);
@@ -192,6 +196,7 @@ export default function MarketSniperIndicator() {
       setIsMobile(window.innerWidth < 640);
     };
     checkMobile();
+    setIsMounted(true);
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -228,36 +233,22 @@ export default function MarketSniperIndicator() {
     const container = fullscreenContainerRef.current;
     if (!container) return;
 
-    // iOS doesn't support Fullscreen API - use CSS fullscreen
+    // iOS doesn't support Fullscreen API - use Portal-based fullscreen
     if (isIOS()) {
       const entering = !fullscreen;
 
       if (entering) {
-        // Hide everything else and fix body
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.width = '100%';
-        document.body.style.height = '100%';
-        document.querySelectorAll('nav, footer').forEach(el => {
-          el.style.setProperty('display', 'none', 'important');
-        });
-        window.scrollTo(0, 0);
-
         // Store the actual viewport height for iOS
-        if (container) {
-          container.style.setProperty('--ios-vh', `${window.innerHeight}px`);
-        }
+        const vh = window.innerHeight;
+        setIosViewportHeight(vh);
+        document.body.style.overflow = 'hidden';
+        window.scrollTo(0, 0);
       } else {
-        // Restore everything
         document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.style.height = '';
-        document.querySelectorAll('nav, footer').forEach(el => {
-          el.style.removeProperty('display');
-        });
+        setIosViewportHeight(0);
       }
 
+      setIsIOSFullscreen(entering);
       setFullscreen(entering);
       return;
     }
@@ -288,7 +279,7 @@ export default function MarketSniperIndicator() {
         setFullscreen(false);
       }
     }
-  }, [isIOS]);
+  }, [isIOS, fullscreen]);
 
   // Calculate candle countdown timer
   useEffect(() => {
@@ -1251,10 +1242,9 @@ export default function MarketSniperIndicator() {
       let width, height;
 
       if (fullscreen) {
-        // Use window dimensions minus header height (44px mobile + 40px margin = 84px, 38px desktop + 40px margin = 78px)
+        // Use window dimensions minus header height (44px + 10px safe area = 54px)
         width = window.innerWidth;
-        const headerHeight = isMobile ? 84 : 78;
-        height = window.innerHeight - headerHeight;
+        height = window.innerHeight - 54;
       } else {
         width = container?.offsetWidth || canvas.parentElement?.offsetWidth || canvas.offsetWidth;
         height = canvas.offsetHeight;
@@ -1277,7 +1267,7 @@ export default function MarketSniperIndicator() {
     );
 
     return () => timers.forEach(clearTimeout);
-  }, [fullscreen]);
+  }, [fullscreen, iosViewportHeight, isIOSFullscreen]);
 
   // Cleanup animation frames on unmount
   useEffect(() => {
@@ -2295,28 +2285,27 @@ export default function MarketSniperIndicator() {
       )
     : allAssets;
 
-  return (
+  // The main chart content
+  const chartContent = (
     <div
       ref={fullscreenContainerRef}
-      className={fullscreen ? '' : 'bg-[#131722] rounded-lg border border-[#363a45]'}
+      className={fullscreen ? (isIOSFullscreen ? 'ios-fullscreen-container' : '') : 'bg-[#131722] rounded-lg border border-[#363a45]'}
       style={fullscreen ? {
         position: 'fixed',
         top: 0,
         left: 0,
         width: '100vw',
-        height: 'var(--ios-vh, 100vh)',
+        height: isIOSFullscreen && iosViewportHeight > 0 ? `${iosViewportHeight}px` : '100vh',
         zIndex: 999999,
         background: '#131722',
-        display: 'flex',
-        flexDirection: 'column',
         overflow: 'hidden',
       } : {}}
     >
-      
+
       {/* Header - Always show */}
       <div
         className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]"
-        style={fullscreen ? { marginTop: '20px' } : {}}
+        style={fullscreen ? { marginTop: '10px' } : {}}
       >
         {/* Left Section: Symbol + Timeframe */}
         <div className="flex items-center gap-1">
@@ -2700,9 +2689,9 @@ export default function MarketSniperIndicator() {
         ref={containerRef}
         className="relative"
         style={fullscreen ? {
-          flex: 1,
+          position: 'relative',
           width: '100%',
-          minHeight: 0,
+          height: 'calc(100% - 54px)',
         } : {}}
       >
         {loading && !marketData ? (
@@ -2726,16 +2715,18 @@ export default function MarketSniperIndicator() {
             </div>
           </div>
         ) : (
-          <div className="relative" style={fullscreen ? { flex: 1, width: '100%', display: 'flex' } : {}}>
+          <div className="relative" style={fullscreen ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } : {}}>
             <canvas
               ref={chartRef}
               className={fullscreen ? '' : 'w-full h-[380px] sm:h-[480px] md:h-[520px]'}
               style={fullscreen ? {
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%',
-                flex: 1,
+                height: '100%',
                 background: '#131722',
                 touchAction: 'none',
-                display: 'block',
               } : {
                 background: '#131722',
                 cursor: isMobile ? 'default' : 'crosshair',
@@ -3128,4 +3119,11 @@ export default function MarketSniperIndicator() {
       )}
     </div>
   );
+
+  // For iOS fullscreen, render via portal to escape parent stacking contexts
+  if (isIOSFullscreen && isMounted && typeof document !== 'undefined') {
+    return createPortal(chartContent, document.body);
+  }
+
+  return chartContent;
 }
