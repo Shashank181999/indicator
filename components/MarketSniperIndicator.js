@@ -829,7 +829,7 @@ export default function MarketSniperIndicator() {
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', handleWheel);
-  }, [handleZoom]);
+  }, [handleZoom, fullscreen, isIOSFullscreen]);
 
   // Mouse drag handlers
   useEffect(() => {
@@ -922,196 +922,79 @@ export default function MarketSniperIndicator() {
       window.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [handlePan, startInertia, stopInertia, scheduleRender]);
+  }, [handlePan, startInertia, stopInertia, scheduleRender, fullscreen, isIOSFullscreen]);
 
-  // Touch handlers for pinch-to-zoom and drag - Mobile optimized
+  // iOS Safari gesture events for better pinch-zoom support
   useEffect(() => {
     const canvas = chartRef.current;
     if (!canvas) return;
 
-    const getTouchDistance = (touches) => {
-      if (touches.length < 2) return 0;
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
+    // iOS Safari gesture events (GestureEvent API)
+    let gestureStartScale = 1;
+    let gestureStartCandleWidth = 0;
+
+    const handleGestureStart = (e) => {
+      e.preventDefault();
+      gestureStartScale = e.scale;
+      gestureStartCandleWidth = chartViewportRef.current.candleWidth;
+      pinchRef.current.isPinching = true;
     };
 
-    const getTouchCenter = (touches) => {
-      if (touches.length < 2) return { x: touches[0].clientX, y: touches[0].clientY };
-      return {
-        x: (touches[0].clientX + touches[1].clientX) / 2,
-        y: (touches[0].clientY + touches[1].clientY) / 2,
-      };
-    };
+    const handleGestureChange = (e) => {
+      e.preventDefault();
+      if (!pinchRef.current.isPinching) return;
 
-    let touchStartY = 0;
-    let touchStartX = 0;
-    let touchStartTime = 0;
-    let isHorizontalDrag = false;
-    let directionDecided = false;
-    let currentTouchViewport = chartViewportRef;
-    let lastTouchX = 0;
-    let lastTouchTime = 0;
+      const scale = e.scale / gestureStartScale;
+      const newCandleWidth = Math.max(
+        chartViewportRef.current.minCandleWidth,
+        Math.min(chartViewportRef.current.maxCandleWidth, gestureStartCandleWidth * scale)
+      );
 
-    const handleTouchStart = (e) => {
-      stopInertia();
-      touchStartTime = Date.now();
+      const rect = canvas.getBoundingClientRect();
+      const chartWidth = rect.width - 90;
+      const priceData = marketData?.priceData;
 
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const center = getTouchCenter(e.touches);
-        const section = detectSection(center.y);
-        activeViewportRef.current = section;
-        currentTouchViewport = section === 'osc' ? oscViewportRef : chartViewportRef;
-
-        const pinch = pinchRef.current;
-        pinch.isPinching = true;
-        pinch.initialDistance = getTouchDistance(e.touches);
-        pinch.initialCandleWidth = currentTouchViewport.current.candleWidth;
-        pinch.centerX = center.x;
-        directionDecided = true;
-        isHorizontalDrag = false;
-      } else if (e.touches.length === 1) {
-        e.preventDefault();
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        lastTouchX = touchStartX;
-        lastTouchTime = touchStartTime;
-
-        const section = detectSection(e.touches[0].clientY);
-        activeViewportRef.current = section;
-        currentTouchViewport = section === 'osc' ? oscViewportRef : chartViewportRef;
-
-        directionDecided = false;
-        isHorizontalDrag = false;
-
-        const drag = dragRef.current;
-        drag.isDragging = false;
-        drag.startX = e.touches[0].clientX;
-        drag.lastX = e.touches[0].clientX;
-        drag.velocityX = 0;
-      }
-    };
-
-    const handleTouchMove = (e) => {
-      if (e.touches.length === 2 && pinchRef.current.isPinching) {
-        e.preventDefault();
-        const pinch = pinchRef.current;
-        const currentDistance = getTouchDistance(e.touches);
-        const scale = currentDistance / pinch.initialDistance;
-
-        const center = getTouchCenter(e.touches);
-
-        const newCandleWidth = Math.max(
-          currentTouchViewport.current.minCandleWidth,
-          Math.min(currentTouchViewport.current.maxCandleWidth, pinch.initialCandleWidth * scale)
-        );
-
-        // Pinch zoom - SYNCS BOTH viewports
+      if (priceData) {
+        const candleCount = priceData.length;
+        const newVisibleCount = Math.max(3, chartWidth / newCandleWidth - 3);
         const viewport = chartViewportRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const chartWidth = rect.width - 90; // Right padding for price labels
-        const priceData = marketData?.priceData;
 
-        if (priceData) {
-          const candleCount = priceData.length;
-          const newVisibleCount = Math.max(3, chartWidth / newCandleWidth - 3);
+        let newEnd = candleCount;
+        let newStart = Math.max(0, candleCount - newVisibleCount);
 
-          // ANCHOR TO RIGHT: Keep most recent candles visible
-          let newEnd = candleCount;
-          let newStart = Math.max(0, candleCount - newVisibleCount);
-
-          // If user has scrolled left (viewing history), maintain relative position
-          if (viewport.endIndex < candleCount - 1) {
-            const currentEndOffset = candleCount - viewport.endIndex;
-            newEnd = candleCount - currentEndOffset;
-            newStart = Math.max(0, newEnd - newVisibleCount);
-          }
-
-          // Apply to BOTH viewports (instant for touch responsiveness)
-          chartViewportRef.current.candleWidth = newCandleWidth;
-          chartViewportRef.current.startIndex = newStart;
-          chartViewportRef.current.endIndex = newEnd;
-
-          // Also update target to stay in sync
-          targetViewportRef.current.candleWidth = newCandleWidth;
-          targetViewportRef.current.startIndex = newStart;
-          targetViewportRef.current.endIndex = newEnd;
-
-          scheduleRender();
+        if (viewport.endIndex < candleCount - 1) {
+          const currentEndOffset = candleCount - viewport.endIndex;
+          newEnd = candleCount - currentEndOffset;
+          newStart = Math.max(0, newEnd - newVisibleCount);
         }
 
-        pinch.initialCandleWidth = newCandleWidth;
-        pinch.initialDistance = currentDistance;
+        chartViewportRef.current.candleWidth = newCandleWidth;
+        chartViewportRef.current.startIndex = newStart;
+        chartViewportRef.current.endIndex = newEnd;
+        targetViewportRef.current.candleWidth = newCandleWidth;
+        targetViewportRef.current.startIndex = newStart;
+        targetViewportRef.current.endIndex = newEnd;
 
-      } else if (e.touches.length === 1 && !pinchRef.current.isPinching) {
-        const touch = e.touches[0];
-        const deltaX = touch.clientX - touchStartX;
-        const deltaY = touch.clientY - touchStartY;
-
-        if (!directionDecided) {
-          const absX = Math.abs(deltaX);
-          const absY = Math.abs(deltaY);
-
-          // Lower threshold for faster response on mobile (5px instead of 10px)
-          if (absX > 5 || absY > 5) {
-            directionDecided = true;
-            // More lenient horizontal detection for chart panning
-            isHorizontalDrag = absX > absY * 0.8;
-
-            if (isHorizontalDrag) {
-              dragRef.current.isDragging = true;
-              dragRef.current.lastX = touch.clientX;
-            }
-          }
-        }
-
-        if (directionDecided && isHorizontalDrag) {
-          e.preventDefault();
-          const drag = dragRef.current;
-          const moveDeltaX = touch.clientX - drag.lastX;
-
-          // Smooth velocity calculation with momentum
-          const now = Date.now();
-          const timeDelta = now - lastTouchTime || 16;
-          drag.velocityX = moveDeltaX * (16 / timeDelta); // Normalize to ~60fps
-          drag.lastX = touch.clientX;
-          lastTouchX = touch.clientX;
-          lastTouchTime = now;
-
-          handlePan(moveDeltaX);
-        }
+        scheduleRender();
       }
     };
 
-    const handleTouchEnd = (e) => {
-      if (e.touches.length < 2) {
-        pinchRef.current.isPinching = false;
-      }
-
-      if (e.touches.length === 0) {
-        const drag = dragRef.current;
-
-        if (drag.isDragging && isHorizontalDrag && Math.abs(drag.velocityX) > 2) {
-          startInertia();
-        }
-
-        drag.isDragging = false;
-        directionDecided = false;
-        isHorizontalDrag = false;
-      }
+    const handleGestureEnd = (e) => {
+      e.preventDefault();
+      pinchRef.current.isPinching = false;
     };
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    // Add gesture events for iOS Safari
+    canvas.addEventListener('gesturestart', handleGestureStart, { passive: false });
+    canvas.addEventListener('gesturechange', handleGestureChange, { passive: false });
+    canvas.addEventListener('gestureend', handleGestureEnd, { passive: false });
 
     return () => {
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('gesturestart', handleGestureStart);
+      canvas.removeEventListener('gesturechange', handleGestureChange);
+      canvas.removeEventListener('gestureend', handleGestureEnd);
     };
-  }, [handleZoom, handlePan, startInertia, stopInertia]);
+  }, [marketData, scheduleRender, fullscreen, isIOSFullscreen]);
 
   // Divider drag handlers for resizing chart/oscillator sections
   const handleDividerStart = useCallback((clientY) => {
@@ -2272,6 +2155,98 @@ export default function MarketSniperIndicator() {
     return chartViewportRef.current.candleWidth !== 8 || oscViewportRef.current.candleWidth !== 8;
   };
 
+  // Direct touch handlers for canvas - ensures immediate response on iOS
+  const canvasTouchStart = useCallback((e) => {
+    e.preventDefault();
+    stopInertia();
+
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      pinchRef.current.isPinching = true;
+      pinchRef.current.initialDistance = distance;
+      pinchRef.current.initialCandleWidth = chartViewportRef.current.candleWidth;
+    } else if (e.touches.length === 1) {
+      const drag = dragRef.current;
+      drag.isDragging = true;
+      drag.startX = e.touches[0].clientX;
+      drag.lastX = e.touches[0].clientX;
+      drag.velocityX = 0;
+    }
+  }, [stopInertia]);
+
+  const canvasTouchMove = useCallback((e) => {
+    e.preventDefault();
+
+    if (e.touches.length === 2 && pinchRef.current.isPinching) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDistance = Math.sqrt(dx * dx + dy * dy);
+      const scale = currentDistance / pinchRef.current.initialDistance;
+
+      const newCandleWidth = Math.max(
+        chartViewportRef.current.minCandleWidth,
+        Math.min(chartViewportRef.current.maxCandleWidth, pinchRef.current.initialCandleWidth * scale)
+      );
+
+      const canvas = chartRef.current;
+      if (!canvas || !marketData?.priceData) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const chartWidth = rect.width - 90;
+      const candleCount = marketData.priceData.length;
+      const newVisibleCount = Math.max(3, chartWidth / newCandleWidth - 3);
+
+      let newEnd = candleCount;
+      let newStart = Math.max(0, candleCount - newVisibleCount);
+
+      if (chartViewportRef.current.endIndex < candleCount - 1) {
+        const currentEndOffset = candleCount - chartViewportRef.current.endIndex;
+        newEnd = candleCount - currentEndOffset;
+        newStart = Math.max(0, newEnd - newVisibleCount);
+      }
+
+      chartViewportRef.current.candleWidth = newCandleWidth;
+      chartViewportRef.current.startIndex = newStart;
+      chartViewportRef.current.endIndex = newEnd;
+      targetViewportRef.current.candleWidth = newCandleWidth;
+      targetViewportRef.current.startIndex = newStart;
+      targetViewportRef.current.endIndex = newEnd;
+
+      pinchRef.current.initialCandleWidth = newCandleWidth;
+      pinchRef.current.initialDistance = currentDistance;
+
+      scheduleRender();
+    } else if (e.touches.length === 1 && !pinchRef.current.isPinching) {
+      const touch = e.touches[0];
+      const drag = dragRef.current;
+      const moveDeltaX = touch.clientX - drag.lastX;
+
+      drag.velocityX = moveDeltaX;
+      drag.lastX = touch.clientX;
+
+      if (moveDeltaX !== 0) {
+        handlePan(moveDeltaX);
+      }
+    }
+  }, [marketData, handlePan, scheduleRender]);
+
+  const canvasTouchEnd = useCallback((e) => {
+    if (e.touches.length < 2) {
+      pinchRef.current.isPinching = false;
+    }
+
+    if (e.touches.length === 0) {
+      const drag = dragRef.current;
+      if (drag.isDragging && Math.abs(drag.velocityX) > 2) {
+        startInertia();
+      }
+      drag.isDragging = false;
+    }
+  }, [startInertia]);
+
   // Get all assets for search
   const allAssets = Object.entries(ASSET_CATEGORIES).flatMap(([catKey, cat]) =>
     cat.assets.map((asset) => ({ ...asset, category: catKey, categoryName: cat.name }))
@@ -2295,7 +2270,8 @@ export default function MarketSniperIndicator() {
         top: 0,
         left: 0,
         width: '100vw',
-        height: isIOSFullscreen && iosViewportHeight > 0 ? `${iosViewportHeight}px` : '100vh',
+        height: isIOSFullscreen && iosViewportHeight > 0 ? `${iosViewportHeight}px` : '100dvh',
+        maxHeight: '-webkit-fill-available',
         zIndex: 999999,
         background: '#131722',
         overflow: 'hidden',
@@ -2305,7 +2281,6 @@ export default function MarketSniperIndicator() {
       {/* Header - Always show */}
       <div
         className="flex items-center justify-between h-[44px] sm:h-[38px] px-1 bg-[#1e222d] border-b border-[#363a45]"
-        style={fullscreen ? { marginTop: '10px' } : {}}
       >
         {/* Left Section: Symbol + Timeframe */}
         <div className="flex items-center gap-1">
@@ -2447,7 +2422,7 @@ export default function MarketSniperIndicator() {
           </div>
 
           {/* Indicators Button */}
-          <div className="hidden sm:flex items-center">
+          <div className={`${fullscreen ? 'flex' : 'hidden sm:flex'} items-center`}>
             <div className="w-px h-5 bg-[#363a45] mx-1"></div>
             <button
               onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
@@ -2643,8 +2618,8 @@ export default function MarketSniperIndicator() {
         </div>
       )}
 
-      {/* Mobile Quick Actions Bar - Hidden in mobile fullscreen */}
-      {isMobile && !fullscreen && (
+      {/* Mobile Quick Actions Bar */}
+      {isMobile && (
         <div className="flex items-center justify-between h-[40px] px-2 bg-[#1e222d] border-b border-[#363a45]">
           {/* Chart Type Toggle */}
           <div className="flex items-center gap-1 bg-[#131722] rounded-lg p-0.5">
@@ -2691,7 +2666,7 @@ export default function MarketSniperIndicator() {
         style={fullscreen ? {
           position: 'relative',
           width: '100%',
-          height: 'calc(100% - 54px)',
+          height: isMobile ? 'calc(100% - 84px)' : 'calc(100% - 38px)',
         } : {}}
       >
         {loading && !marketData ? (
@@ -2719,6 +2694,9 @@ export default function MarketSniperIndicator() {
             <canvas
               ref={chartRef}
               className={fullscreen ? '' : 'w-full h-[380px] sm:h-[480px] md:h-[520px]'}
+              onTouchStart={canvasTouchStart}
+              onTouchMove={canvasTouchMove}
+              onTouchEnd={canvasTouchEnd}
               style={fullscreen ? {
                 position: 'absolute',
                 top: 0,
@@ -2727,10 +2705,16 @@ export default function MarketSniperIndicator() {
                 height: '100%',
                 background: '#131722',
                 touchAction: 'none',
+                WebkitUserSelect: 'none',
+                WebkitTouchCallout: 'none',
+                userSelect: 'none',
               } : {
                 background: '#131722',
                 cursor: isMobile ? 'default' : 'crosshair',
                 touchAction: 'none',
+                WebkitUserSelect: 'none',
+                WebkitTouchCallout: 'none',
+                userSelect: 'none',
                 display: 'block',
               }}
             />
@@ -2769,7 +2753,7 @@ export default function MarketSniperIndicator() {
             )}
 
             {/* Zoom Controls - Floating buttons */}
-            <div className="absolute bottom-3 right-2 flex flex-col gap-1.5 z-10">
+            <div className={`absolute bottom-3 right-2 flex flex-col gap-1.5 ${fullscreen ? 'z-[9999]' : 'z-10'}`}>
               {/* Zoom In - positive deltaY = bigger candles */}
               <button
                 onClick={() => {

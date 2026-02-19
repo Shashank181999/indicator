@@ -13,6 +13,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
 
 ChartJS.register(
@@ -23,7 +24,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  zoomPlugin
 );
 
 export default function RSIChart({ data, period = 14 }) {
@@ -101,6 +103,21 @@ export default function RSIChart({ data, period = 14 }) {
             }
             return '';
           },
+        },
+      },
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: 'x',
+        },
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true,
+          },
+          mode: 'x',
         },
       },
     },

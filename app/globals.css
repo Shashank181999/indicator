@@ -43,6 +43,7 @@
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -53,6 +54,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
 }
 
 /* Thin font styles */
@@ -107,12 +110,12 @@ select {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Touch action */
+/* Touch action - allow zoom */
 button,
 a,
 input,
 select {
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
 }
 
 /* Focus styles */
@@ -277,6 +280,14 @@ input:focus-visible {
 .chart-container {
   touch-action: pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
+}
+
+/* iOS chart canvas - enable custom touch handling */
+@supports (-webkit-touch-callout: none) {
+  canvas {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
 }
 
 /* Status badges */

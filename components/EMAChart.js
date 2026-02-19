@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 ChartJS.register(
@@ -21,7 +22,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  zoomPlugin
 );
 
 export default function EMAChart({ priceData, ema9, ema21, ema50 }) {
@@ -123,6 +125,21 @@ export default function EMAChart({ priceData, ema9, ema21, ema50 }) {
           label: (context) => {
             return `${context.dataset.label}: ${context.raw?.toFixed(2) || 'N/A'}`;
           },
+        },
+      },
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: 'x',
+        },
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true,
+          },
+          mode: 'x',
         },
       },
     },
