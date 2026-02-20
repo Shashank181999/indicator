@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 
+// Use Edge Runtime for faster cold starts
+export const runtime = 'edge';
+
+// Enable caching
+export const revalidate = 30; // Cache for 30 seconds
+
 // Check if a symbol is crypto (24/7 market)
 function isCryptoSymbol(symbol) {
   return symbol.includes('-USD') || symbol.includes('BTC') || symbol.includes('ETH') ||
