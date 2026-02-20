@@ -310,7 +310,7 @@ export default function PricingPage() {
               7-Day Money-Back Guarantee
             </h3>
             <p className="text-gray-400 max-w-2xl mx-auto mb-8">
-              We're confident you'll love Market Sniper. If for any reason you're
+              We&apos;re confident you&apos;ll love Market Sniper. If for any reason you&apos;re
               not satisfied with our service, contact us within 7 days for a full refund.
               No questions asked.
             </p>

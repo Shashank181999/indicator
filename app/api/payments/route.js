@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 // Check if mock mode is enabled
-const useMockDb = () => process.env.USE_MOCK_DB === 'true';
+const isMockDb = () => process.env.USE_MOCK_DB === 'true';
 
 // Mock payments data
 const mockPayments = [
@@ -49,7 +49,7 @@ export async function GET(request) {
     }
 
     // Use mock data if enabled
-    if (useMockDb()) {
+    if (isMockDb()) {
       return NextResponse.json({ payments: mockPayments });
     }
 

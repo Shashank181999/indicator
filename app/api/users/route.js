@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import bcrypt from 'bcryptjs';
 import { authOptions } from '@/lib/auth';
-import { useMockDb, MockUser } from '@/lib/mockDb';
+import { isMockDb, MockUser } from '@/lib/mockDb';
 
 // Dynamic imports for MongoDB (only when needed)
 let dbConnect, User;
@@ -28,7 +28,7 @@ export async function GET(request) {
     }
 
     // Use mock database if MongoDB is not configured
-    if (useMockDb()) {
+    if (isMockDb()) {
       const result = await MockUser.find({});
       const users = await result.select('-password').sort({ createdAt: -1 });
       return NextResponse.json({ users });
@@ -45,7 +45,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching users:', error);
     // Fallback to mock data on error
-    if (useMockDb()) {
+    if (isMockDb()) {
       const result = await MockUser.find({});
       const users = await result.select('-password').sort({ createdAt: -1 });
       return NextResponse.json({ users });
@@ -77,7 +77,7 @@ export async function POST(request) {
     }
 
     // Use mock database if MongoDB is not configured
-    if (useMockDb()) {
+    if (isMockDb()) {
       const existingUser = await MockUser.findOne({ email: email.toLowerCase() });
       if (existingUser) {
         return NextResponse.json(
