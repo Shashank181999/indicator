@@ -1,0 +1,6 @@
+{
+  "env": {
+    "NEXTAUTH_URL": "https://indicator-sniper.vercel.app",
+    "NEXTAUTH_SECRET": "production-secret-key-for-market-sniper-app-2024"
+  }
+}
