@@ -33,117 +33,98 @@ function getBinanceSymbol(symbol) {
   return symbolMap[symbol] || symbol.replace('-USD', 'USDT');
 }
 
-// Generate mock candlestick data for demo
-function generateMockKlines(basePrice = 67000, count = 100) {
-  const data = [];
-  let price = basePrice;
-  const now = Date.now();
-  const interval = 15 * 60 * 1000; // 15 minutes
-
-  for (let i = count - 1; i >= 0; i--) {
-    const timestamp = now - (i * interval);
-    const change = (Math.random() - 0.5) * 500;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * 200;
-    const low = Math.min(open, close) - Math.random() * 200;
-    const volume = Math.random() * 1000 + 100;
-
-    data.push({
-      date: new Date(timestamp).toISOString(),
-      timestamp,
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      volume: parseFloat(volume.toFixed(2)),
-    });
-
-    price = close;
-  }
-
-  return data;
-}
-
-// Fetch candlestick data from Binance
+// Fetch candlestick data from Binance (try multiple endpoints)
 async function fetchBinanceKlines(symbol, interval = '15m', limit = 100) {
-  try {
-    const binanceSymbol = getBinanceSymbol(symbol);
-    const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`;
+  const binanceSymbol = getBinanceSymbol(symbol);
 
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-    });
+  // Try multiple Binance endpoints
+  const endpoints = [
+    `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`,
+    `https://api1.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`,
+    `https://api2.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`,
+    `https://api3.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${interval}&limit=${limit}`,
+  ];
 
-    if (!res.ok) throw new Error('Binance API error');
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        next: { revalidate: 0 },
+      });
 
-    const data = await res.json();
+      if (!res.ok) continue;
 
-    // Convert Binance klines to our format
-    // [openTime, open, high, low, close, volume, closeTime, ...]
-    return data.map(k => ({
-      date: new Date(k[0]).toISOString(),
-      timestamp: k[0],
-      open: parseFloat(k[1]),
-      high: parseFloat(k[2]),
-      low: parseFloat(k[3]),
-      close: parseFloat(k[4]),
-      volume: parseFloat(k[5]),
-    }));
-  } catch (error) {
-    console.error('Binance fetch error:', error);
-    // Return mock data as fallback
-    const basePrices = { 'BTCUSDT': 67500, 'ETHUSDT': 3400, 'SOLUSDT': 150 };
-    const basePrice = basePrices[getBinanceSymbol(symbol)] || 1000;
-    return generateMockKlines(basePrice, limit);
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        // Convert Binance klines to our format
+        return data.map(k => ({
+          date: new Date(k[0]).toISOString(),
+          timestamp: k[0],
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          volume: parseFloat(k[5]),
+        }));
+      }
+    } catch (error) {
+      console.error(`Binance endpoint failed: ${url}`, error.message);
+      continue;
+    }
   }
+
+  console.error('All Binance endpoints failed for:', binanceSymbol);
+  return null;
 }
 
-// Fetch current price from Binance
+// Fetch current price from Binance (try multiple endpoints)
 async function fetchBinancePrice(symbol) {
-  try {
-    const binanceSymbol = getBinanceSymbol(symbol);
-    const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+  const binanceSymbol = getBinanceSymbol(symbol);
 
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-    });
+  const endpoints = [
+    `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
+    `https://api1.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
+    `https://api2.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
+    `https://api3.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`,
+  ];
 
-    if (!res.ok) throw new Error('Binance ticker error');
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        next: { revalidate: 0 },
+      });
 
-    const data = await res.json();
-    return {
-      price: parseFloat(data.lastPrice),
-      prevClose: parseFloat(data.prevClosePrice),
-      priceChange: parseFloat(data.priceChange),
-      priceChangePercent: parseFloat(data.priceChangePercent),
-      high24h: parseFloat(data.highPrice),
-      low24h: parseFloat(data.lowPrice),
-      volume24h: parseFloat(data.volume),
-    };
-  } catch (error) {
-    console.error('Binance ticker error:', error);
-    // Return mock ticker data
-    const basePrices = { 'BTCUSDT': 67500, 'ETHUSDT': 3400, 'SOLUSDT': 150 };
-    const basePrice = basePrices[getBinanceSymbol(symbol)] || 1000;
-    return {
-      price: basePrice + (Math.random() - 0.5) * 100,
-      prevClose: basePrice,
-      priceChange: (Math.random() - 0.5) * 500,
-      priceChangePercent: (Math.random() - 0.5) * 3,
-      high24h: basePrice * 1.02,
-      low24h: basePrice * 0.98,
-      volume24h: Math.random() * 50000,
-    };
+      if (!res.ok) continue;
+
+      const data = await res.json();
+
+      if (data && data.lastPrice) {
+        return {
+          price: parseFloat(data.lastPrice),
+          prevClose: parseFloat(data.prevClosePrice),
+          priceChange: parseFloat(data.priceChange),
+          priceChangePercent: parseFloat(data.priceChangePercent),
+          high24h: parseFloat(data.highPrice),
+          low24h: parseFloat(data.lowPrice),
+          volume24h: parseFloat(data.volume),
+        };
+      }
+    } catch (error) {
+      console.error(`Binance ticker endpoint failed: ${url}`, error.message);
+      continue;
+    }
   }
+
+  console.error('All Binance ticker endpoints failed for:', binanceSymbol);
+  return null;
 }
 
 // Check if Indian market hours (9:15 AM - 3:30 PM IST, Mon-Fri)
